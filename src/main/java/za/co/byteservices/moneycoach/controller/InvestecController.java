@@ -4,7 +4,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import za.co.byteservices.moneycoach.config.InvestecApiProperties;
+import za.co.byteservices.moneycoach.dto.InvestecAccountResponse;
 import za.co.byteservices.moneycoach.dto.InvestecTokenResponse;
+import za.co.byteservices.moneycoach.service.InvestecAccountService;
 import za.co.byteservices.moneycoach.service.InvestecAuthService;
 
 import java.util.LinkedHashMap;
@@ -15,6 +17,9 @@ public class InvestecController {
 
     @Autowired
     InvestecAuthService  investecAuthService;
+
+    @Autowired
+    InvestecAccountService accountService;
 
     private final InvestecApiProperties properties;
 
@@ -43,5 +48,10 @@ public class InvestecController {
         response.put("scope", token != null ? token.getScope() : null);
 
         return response;
+    }
+
+    @GetMapping("/api/investec/accounts")
+    public InvestecAccountResponse getAccounts() {
+        return accountService.getAccounts();
     }
 }

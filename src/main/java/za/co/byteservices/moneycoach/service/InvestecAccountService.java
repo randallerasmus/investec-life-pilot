@@ -3,6 +3,7 @@ package za.co.byteservices.moneycoach.service;
 import org.springframework.stereotype.Service;
 import za.co.byteservices.moneycoach.client.InvestecApiClient;
 import za.co.byteservices.moneycoach.dto.InvestecAccountResponse;
+import za.co.byteservices.moneycoach.dto.InvestecBalanceResponse;
 import za.co.byteservices.moneycoach.dto.InvestecTokenResponse;
 
 @Service
@@ -25,5 +26,15 @@ public class InvestecAccountService {
         }
 
         return apiClient.getAccounts(token.getAccessToken());
+    }
+
+    public InvestecBalanceResponse getBalance(String accountId) {
+        InvestecTokenResponse token = authService.getAccessToken();
+
+        if (token == null || token.getAccessToken() == null || token.getAccessToken().isBlank()) {
+            throw new IllegalStateException("Could not retrieve Investec access token");
+        }
+
+        return apiClient.getBalance(token.getAccessToken(), accountId);
     }
 }

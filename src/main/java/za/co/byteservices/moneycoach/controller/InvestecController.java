@@ -2,9 +2,11 @@ package za.co.byteservices.moneycoach.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 import za.co.byteservices.moneycoach.config.InvestecApiProperties;
 import za.co.byteservices.moneycoach.dto.InvestecAccountResponse;
+import za.co.byteservices.moneycoach.dto.InvestecBalanceResponse;
 import za.co.byteservices.moneycoach.dto.InvestecTokenResponse;
 import za.co.byteservices.moneycoach.service.InvestecAccountService;
 import za.co.byteservices.moneycoach.service.InvestecAuthService;
@@ -53,5 +55,10 @@ public class InvestecController {
     @GetMapping("/api/investec/accounts")
     public InvestecAccountResponse getAccounts() {
         return accountService.getAccounts();
+    }
+
+    @GetMapping("/api/investec/accounts/{accountId}/balance")
+    public InvestecBalanceResponse getBalance(@PathVariable String accountId) {
+        return accountService.getBalance(accountId);
     }
 }

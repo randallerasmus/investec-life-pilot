@@ -4,7 +4,9 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import za.co.byteservices.moneycoach.dto.MoneyCoachAdviceResponse;
 import za.co.byteservices.moneycoach.dto.SafeToSpendResponse;
+import za.co.byteservices.moneycoach.service.MoneyCoachAdviceService;
 import za.co.byteservices.moneycoach.service.MoneyCoachService;
 
 import java.math.BigDecimal;
@@ -13,9 +15,12 @@ import java.math.BigDecimal;
 public class MoneyCoachController {
 
     private final MoneyCoachService moneyCoachService;
+    private final MoneyCoachAdviceService moneyCoachAdviceService;
 
-    public MoneyCoachController(MoneyCoachService moneyCoachService) {
+    public MoneyCoachController(MoneyCoachService moneyCoachService,
+                                MoneyCoachAdviceService moneyCoachAdviceService) {
         this.moneyCoachService = moneyCoachService;
+        this.moneyCoachAdviceService = moneyCoachAdviceService;
     }
 
     @GetMapping("/api/coach/accounts/{accountId}/safe-to-spend")
@@ -47,6 +52,47 @@ public class MoneyCoachController {
             BigDecimal goalSavingAmount
     ) {
         return moneyCoachService.calculateSafeToSpend(
+                accountId,
+                bondOrRent,
+                schoolFees,
+                insurance,
+                groceries,
+                fuel,
+                subscriptions,
+                otherBills,
+                goalSavingAmount
+        );
+    }
+
+    @GetMapping("/api/coach/accounts/{accountId}/advice")
+    public MoneyCoachAdviceResponse getAdvice(
+            @PathVariable String accountId,
+
+            @RequestParam(required = false, defaultValue = "0")
+            BigDecimal bondOrRent,
+
+            @RequestParam(required = false, defaultValue = "0")
+            BigDecimal schoolFees,
+
+            @RequestParam(required = false, defaultValue = "0")
+            BigDecimal insurance,
+
+            @RequestParam(required = false, defaultValue = "0")
+            BigDecimal groceries,
+
+            @RequestParam(required = false, defaultValue = "0")
+            BigDecimal fuel,
+
+            @RequestParam(required = false, defaultValue = "0")
+            BigDecimal subscriptions,
+
+            @RequestParam(required = false, defaultValue = "0")
+            BigDecimal otherBills,
+
+            @RequestParam(required = false, defaultValue = "0")
+            BigDecimal goalSavingAmount
+    ) {
+        return moneyCoachAdviceService.getAdvice(
                 accountId,
                 bondOrRent,
                 schoolFees,

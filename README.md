@@ -1,110 +1,105 @@
-# Investec Money Coach
+# 💸 Investec Money Coach
 
-A Spring Boot backend application that integrates with the Investec Programmable Banking / Account Information API to retrieve account data, balances, and transactions for building a personal finance coaching experience.
+<div align="center">
 
-The long-term goal of this project is to create an **AI Family Money Coach** that helps users understand their real available money, protect bill money, track savings goals, and receive practical financial guidance based on their own transaction behaviour.
+![Java](https://img.shields.io/badge/Java-17+-orange?style=for-the-badge&logo=openjdk)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-Backend-6DB33F?style=for-the-badge&logo=springboot)
+![Maven](https://img.shields.io/badge/Maven-Build-C71A36?style=for-the-badge&logo=apachemaven)
+![OAuth2](https://img.shields.io/badge/OAuth2-Client%20Credentials-blue?style=for-the-badge)
+![Status](https://img.shields.io/badge/Status-MVP%20In%20Progress-1E90FF?style=for-the-badge)
+![Investec API](https://img.shields.io/badge/Investec-Programmable%20Banking-1f2a44?style=for-the-badge)
 
----
-
-## Project Vision
-
-Most banking apps show a balance, but they do not always show the user's **real safe-to-spend amount**.
-
-For example:
-
-> "You have R35,000 available, but after your expected bills and savings goal, only R7,500 is safe to spend."
-
-This project aims to build a money coaching layer on top of banking data using the Investec Developer APIs.
+</div>
 
 ---
 
-## Current Features
+## ✨ Overview
 
-The project currently supports:
+**Investec Money Coach** is a Spring Boot backend application that integrates with the **Investec Programmable Banking / Account Information API** to retrieve banking data such as:
 
-- Spring Boot backend API
-- Investec API configuration using environment variables
-- OAuth2 client credentials authentication with Investec
-- Access token validation endpoint
-- Fetching Investec accounts
-- Fetching account balances
-- Clean layered structure using:
-  - Controller
-  - Service
-  - API client
-  - DTOs
-  - Configuration properties
+- 🏦 Accounts
+- 💰 Balances
+- 📜 Transactions
 
----
+The broader vision is to build an **AI Family Money Coach** that helps users:
 
-## Completed Milestones
-
-### Milestone 1: Spring Boot application setup
-
-- Created a new Spring Boot backend project
-- Added basic application configuration
-- Confirmed the backend runs locally
-
-### Milestone 2: Investec authentication
-
-- Added Investec API credentials through environment variables
-- Implemented OAuth2 token retrieval
-- Confirmed successful Bearer token generation
-- Verified API scopes for accounts, balances, and transactions
-
-### Milestone 3: Fetch Investec accounts
-
-- Integrated with the Investec Account Information API
-- Added endpoint to retrieve linked Investec accounts
-- Confirmed account data is returned successfully
-
-### Milestone 4: Fetch Investec account balance
-
-- Added endpoint to retrieve balance for a selected account
-- Uses the Investec account ID as a path variable
-- Reuses the OAuth token flow for authenticated balance requests
+- 🎯 set savings goals
+- 🧾 protect money needed for bills
+- 📊 understand real safe-to-spend money
+- 📉 detect overspending patterns
+- 🤖 receive intelligent financial coaching
 
 ---
 
-## Tech Stack
+## 🚀 Vision
 
-- Java
-- Spring Boot
-- Maven
-- REST APIs
-- Investec Developer API
-- OAuth2 Client Credentials Flow
-- Postman for API testing
+Most banking apps show:
+
+> **“Available balance: R35,000”**
+
+But what many users actually need is:
+
+> **“You have R35,000 available, but after bills and your savings goal, only R7,500 is safe to spend.”**
+
+This project is designed to build that missing layer of intelligence on top of banking data.
 
 ---
 
-## Project Structure
+## 🧠 Problem This Project Solves
+
+Many users struggle to answer questions like:
+
+- “How much can I actually spend safely this month?”
+- “Am I still on track for my family holiday goal?”
+- “Which expenses are hurting my savings plan?”
+- “How can I separate bill money from spending money?”
+
+This project aims to solve that by combining:
+
+- secure banking API integration
+- financial insight logic
+- future AI coaching features
+
+---
+
+## ✅ Current Features
+
+### Implemented so far
+
+- ✅ Spring Boot backend project setup
+- ✅ Investec API configuration via environment variables
+- ✅ OAuth2 token retrieval
+- ✅ Configuration validation endpoint
+- ✅ Token validation endpoint
+- ✅ Fetch linked Investec accounts
+- ✅ Fetch account balance by account ID
+- ✅ Clean layered backend architecture
+
+---
+
+## 🛠️ Tech Stack
+
+| Technology | Purpose |
+|-----------|---------|
+| ☕ Java | Core language |
+| 🌱 Spring Boot | Backend framework |
+| 📦 Maven | Build tool |
+| 🔐 OAuth2 Client Credentials | Authentication |
+| 🌐 REST APIs | API communication |
+| 🧪 Postman | API testing |
+| 🏦 Investec Developer API | Banking integration |
+
+---
+
+## 🏗️ Architecture
 
 ```text
-src/main/java/za/co/byteservices/moneycoach
-│
-├── client
-│   └── InvestecApiClient.java
-│
-├── config
-│   └── InvestecApiProperties.java
-│
-├── controller
-│   └── InvestecController.java
-│
-├── dto
-│   ├── InvestecAccountResponse.java
-│   ├── InvestecBalanceResponse.java
-│   ├── InvestecTokenResponse.java
-│   ├── InvestecTransactionResponse.java
-│   └── SafeToSpendResponse.java
-│
-├── model
-│   └── SpendingCategory.java
-│
-├── service
-│   ├── InvestecAccountService.java
-│   ├── InvestecAuthService.java
-│   └── MoneyCoachService.java
-│
-└── MoneyCoachApplication.java
+Client / Postman
+      ↓
+Spring Boot Controller
+      ↓
+Service Layer
+      ↓
+Investec API Client
+      ↓
+Investec Open API

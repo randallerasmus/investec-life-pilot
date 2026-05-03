@@ -6,6 +6,9 @@ import org.springframework.web.client.RestTemplate;
 import za.co.byteservices.moneycoach.config.InvestecApiProperties;
 import za.co.byteservices.moneycoach.dto.InvestecAccountResponse;
 import za.co.byteservices.moneycoach.dto.InvestecBalanceResponse;
+import za.co.byteservices.moneycoach.dto.InvestecTransactionResponse;
+import org.springframework.web.util.UriComponentsBuilder;
+import java.time.LocalDate;
 
 @Component
 public class InvestecApiClient {
@@ -50,6 +53,34 @@ public class InvestecApiClient {
                 HttpMethod.GET,
                 request,
                 InvestecBalanceResponse.class
+        );
+
+        return response.getBody();
+    }
+
+    public InvestecTransactionResponse getTransactions(String accessToken,
+                                                       String accountId,
+                                                       LocalDate fromDate,
+                                                       LocalDate toDate) {
+
+        String url = UriComponentsBuilder
+                .fromUriString(properties.getBaseUrl() + "/za/pb/v1/accounts/" + accountId + "/transactions")
+                .queryParam("fromDate", fromDate)
+                .queryParam("toDate", toDate)
+                .build()
+                .toUriString();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(accessToken);
+        headers.setAccept(java.util.List.of(MediaType.APPLICATION_JSON));
+
+        HttpEntity<Void> request = new HttpEntity<>(headers);
+
+        ResponseEntity<InvestecTransactionResponse> response = restTemplate.exchange(
+                url,
+                HttpMethod.GET,
+                request,
+                InvestecTransactionResponse.class
         );
 
         return response.getBody();

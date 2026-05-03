@@ -1,5 +1,7 @@
 package za.co.byteservices.moneycoach.dto;
 
+import java.math.BigDecimal;
+
 public class InvestecBalanceResponse {
 
     private Data data;
@@ -20,19 +22,19 @@ public class InvestecBalanceResponse {
 
     public static class Data {
         private String accountId;
-        private Double currentBalance;
-        private Double availableBalance;
+        private BigDecimal currentBalance;
+        private BigDecimal availableBalance;
         private String currency;
 
         public String getAccountId() {
             return accountId;
         }
 
-        public Double getCurrentBalance() {
+        public BigDecimal getCurrentBalance() {
             return currentBalance;
         }
 
-        public Double getAvailableBalance() {
+        public BigDecimal getAvailableBalance() {
             return availableBalance;
         }
 

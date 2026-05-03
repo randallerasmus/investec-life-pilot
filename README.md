@@ -62,21 +62,6 @@ This project aims to solve that by combining:
 
 ---
 
-## ✅ Current Features
-
-### Implemented so far
-
-- ✅ Spring Boot backend project setup
-- ✅ Investec API configuration via environment variables
-- ✅ OAuth2 token retrieval
-- ✅ Configuration validation endpoint
-- ✅ Token validation endpoint
-- ✅ Fetch linked Investec accounts
-- ✅ Fetch account balance by account ID
-- ✅ Clean layered backend architecture
-
----
-
 ## 🛠️ Tech Stack
 
 | Technology | Purpose |
@@ -91,15 +76,54 @@ This project aims to solve that by combining:
 
 ---
 
-## 🏗️ Architecture
+Architecture
+↓
+Milestones
+↓
+Configuration
+↓
+Environment Variables
+↓
+Security Approach
+↓
+Available Endpoints
+↓
+How to Run Locally
+↓
+Testing with Postman
+↓
+Future Roadmap
+↓
+Disclaimer
+↓
+Author
+↓
+Review Notes
 
-```text
-Client / Postman
-      ↓
-Spring Boot Controller
-      ↓
-Service Layer
-      ↓
-Investec API Client
-      ↓
-Investec Open API
+---
+
+## ⚠️ Disclaimer
+
+This is currently an experimental developer project for learning and innovation purposes.
+
+It does **not** provide financial advice and does **not** make financial decisions on behalf of users.
+
+Users remain responsible for their own financial decisions.
+
+---
+
+## 👨‍💻 Author
+
+**Randall Erasmus**
+
+- GitHub: [github.com/randallerasmus](https://github.com/randallerasmus)
+
+---
+
+## 🙌 Review Notes for Investec Developer Team
+
+This project was built as an exploratory MVP to demonstrate how Investec’s banking APIs can power a richer customer experience beyond traditional balance checking.
+
+The aim is to evolve this into an intelligent financial wellness assistant that helps users manage money more intentionally through better visibility, smarter planning, and actionable insights.
+
+Feedback is welcome and appreciated.

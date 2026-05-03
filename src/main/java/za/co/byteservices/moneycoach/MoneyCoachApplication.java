@@ -4,10 +4,10 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class InvestecMoneyCoachApplication {
+public class MoneyCoachApplication {
 
-	public static void main(String[] args) {
-		SpringApplication.run(InvestecMoneyCoachApplication.class, args);
-	}
+    public static void main(String[] args) {
+        SpringApplication.run(MoneyCoachApplication.class, args);
+    }
 
 }

@@ -1,4 +1,16 @@
 package za.co.byteservices.moneycoach.model;
 
-public class SpendingCategory {
+public enum SpendingCategory {
+    SALARY,
+    BOND_OR_RENT,
+    SCHOOL_FEES,
+    GROCERIES,
+    FUEL,
+    INSURANCE,
+    SUBSCRIPTION,
+    RESTAURANT,
+    ENTERTAINMENT,
+    TRANSFER,
+    SAVINGS,
+    UNKNOWN
 }

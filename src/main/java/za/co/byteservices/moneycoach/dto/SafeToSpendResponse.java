@@ -6,14 +6,31 @@ public class SafeToSpendResponse {
 
     private String accountId;
     private BigDecimal availableBalance;
+
+    private BigDecimal bondOrRent;
+    private BigDecimal schoolFees;
+    private BigDecimal insurance;
+    private BigDecimal groceries;
+    private BigDecimal fuel;
+    private BigDecimal subscriptions;
+    private BigDecimal otherBills;
+
     private BigDecimal estimatedBills;
     private BigDecimal goalSavingAmount;
     private BigDecimal safeToSpend;
+
     private String currency;
     private String message;
 
     public SafeToSpendResponse(String accountId,
                                BigDecimal availableBalance,
+                               BigDecimal bondOrRent,
+                               BigDecimal schoolFees,
+                               BigDecimal insurance,
+                               BigDecimal groceries,
+                               BigDecimal fuel,
+                               BigDecimal subscriptions,
+                               BigDecimal otherBills,
                                BigDecimal estimatedBills,
                                BigDecimal goalSavingAmount,
                                BigDecimal safeToSpend,
@@ -21,6 +38,13 @@ public class SafeToSpendResponse {
                                String message) {
         this.accountId = accountId;
         this.availableBalance = availableBalance;
+        this.bondOrRent = bondOrRent;
+        this.schoolFees = schoolFees;
+        this.insurance = insurance;
+        this.groceries = groceries;
+        this.fuel = fuel;
+        this.subscriptions = subscriptions;
+        this.otherBills = otherBills;
         this.estimatedBills = estimatedBills;
         this.goalSavingAmount = goalSavingAmount;
         this.safeToSpend = safeToSpend;
@@ -34,6 +58,34 @@ public class SafeToSpendResponse {
 
     public BigDecimal getAvailableBalance() {
         return availableBalance;
+    }
+
+    public BigDecimal getBondOrRent() {
+        return bondOrRent;
+    }
+
+    public BigDecimal getSchoolFees() {
+        return schoolFees;
+    }
+
+    public BigDecimal getInsurance() {
+        return insurance;
+    }
+
+    public BigDecimal getGroceries() {
+        return groceries;
+    }
+
+    public BigDecimal getFuel() {
+        return fuel;
+    }
+
+    public BigDecimal getSubscriptions() {
+        return subscriptions;
+    }
+
+    public BigDecimal getOtherBills() {
+        return otherBills;
     }
 
     public BigDecimal getEstimatedBills() {

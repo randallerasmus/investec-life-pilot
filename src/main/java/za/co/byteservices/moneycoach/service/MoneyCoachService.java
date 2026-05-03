@@ -17,16 +17,31 @@ public class MoneyCoachService {
     }
 
     public SafeToSpendResponse calculateSafeToSpend(String accountId,
-                                                    BigDecimal estimatedBills,
+                                                    BigDecimal bondOrRent,
+                                                    BigDecimal schoolFees,
+                                                    BigDecimal insurance,
+                                                    BigDecimal groceries,
+                                                    BigDecimal fuel,
+                                                    BigDecimal subscriptions,
+                                                    BigDecimal otherBills,
                                                     BigDecimal goalSavingAmount) {
 
-        BigDecimal resolvedEstimatedBills = estimatedBills != null
-                ? estimatedBills
-                : BigDecimal.ZERO;
+        BigDecimal resolvedBondOrRent = valueOrZero(bondOrRent);
+        BigDecimal resolvedSchoolFees = valueOrZero(schoolFees);
+        BigDecimal resolvedInsurance = valueOrZero(insurance);
+        BigDecimal resolvedGroceries = valueOrZero(groceries);
+        BigDecimal resolvedFuel = valueOrZero(fuel);
+        BigDecimal resolvedSubscriptions = valueOrZero(subscriptions);
+        BigDecimal resolvedOtherBills = valueOrZero(otherBills);
+        BigDecimal resolvedGoalSavingAmount = valueOrZero(goalSavingAmount);
 
-        BigDecimal resolvedGoalSavingAmount = goalSavingAmount != null
-                ? goalSavingAmount
-                : BigDecimal.ZERO;
+        BigDecimal estimatedBills = resolvedBondOrRent
+                .add(resolvedSchoolFees)
+                .add(resolvedInsurance)
+                .add(resolvedGroceries)
+                .add(resolvedFuel)
+                .add(resolvedSubscriptions)
+                .add(resolvedOtherBills);
 
         InvestecBalanceResponse balanceResponse = investecAccountService.getBalance(accountId);
 
@@ -34,41 +49,49 @@ public class MoneyCoachService {
             throw new IllegalStateException("Could not retrieve balance for account: " + accountId);
         }
 
-        BigDecimal availableBalance = balanceResponse.getData().getAvailableBalance() != null
-                ? balanceResponse.getData().getAvailableBalance()
-                : BigDecimal.ZERO;
+        BigDecimal availableBalance = valueOrZero(balanceResponse.getData().getAvailableBalance());
 
         BigDecimal safeToSpend = availableBalance
-                .subtract(resolvedEstimatedBills)
+                .subtract(estimatedBills)
                 .subtract(resolvedGoalSavingAmount)
                 .setScale(2, RoundingMode.HALF_UP);
 
-        String currency = balanceResponse.getData().getCurrency();
+        String currency = balanceResponse.getData().getCurrency() != null
+                ? balanceResponse.getData().getCurrency()
+                : "ZAR";
 
         String message = buildMessage(
                 currency,
                 availableBalance,
-                resolvedEstimatedBills,
+                estimatedBills,
                 resolvedGoalSavingAmount,
                 safeToSpend
         );
 
         return new SafeToSpendResponse(
                 accountId,
-                availableBalance.setScale(2, RoundingMode.HALF_UP),
-                resolvedEstimatedBills.setScale(2, RoundingMode.HALF_UP),
-                resolvedGoalSavingAmount.setScale(2, RoundingMode.HALF_UP),
-                safeToSpend,
+                money(availableBalance),
+                money(resolvedBondOrRent),
+                money(resolvedSchoolFees),
+                money(resolvedInsurance),
+                money(resolvedGroceries),
+                money(resolvedFuel),
+                money(resolvedSubscriptions),
+                money(resolvedOtherBills),
+                money(estimatedBills),
+                money(resolvedGoalSavingAmount),
+                money(safeToSpend),
                 currency,
                 message
         );
     }
 
-    private String buildMessage(BigDecimal availableBalance,
-                                BigDecimal estimatedBills,
-                                BigDecimal goalSavingAmount,
-                                BigDecimal safeToSpend) {
-        return buildMessage("ZAR", availableBalance, estimatedBills, goalSavingAmount, safeToSpend);
+    private BigDecimal valueOrZero(BigDecimal value) {
+        return value != null ? value : BigDecimal.ZERO;
+    }
+
+    private BigDecimal money(BigDecimal value) {
+        return valueOrZero(value).setScale(2, RoundingMode.HALF_UP);
     }
 
     private String buildMessage(String currency,
@@ -77,31 +100,29 @@ public class MoneyCoachService {
                                 BigDecimal goalSavingAmount,
                                 BigDecimal safeToSpend) {
 
-        String resolvedCurrency = currency != null ? currency : "ZAR";
-
         if (safeToSpend.compareTo(BigDecimal.ZERO) < 0) {
             return String.format(
                     "Warning: Your %s %.2f available balance is not enough to cover estimated bills of %s %.2f and goal savings of %s %.2f. You are short by %s %.2f.",
-                    resolvedCurrency,
+                    currency,
                     availableBalance,
-                    resolvedCurrency,
+                    currency,
                     estimatedBills,
-                    resolvedCurrency,
+                    currency,
                     goalSavingAmount,
-                    resolvedCurrency,
+                    currency,
                     safeToSpend.abs()
             );
         }
 
         return String.format(
                 "You have %s %.2f available, but only %s %.2f is safe to spend after estimated bills of %s %.2f and goal savings of %s %.2f.",
-                resolvedCurrency,
+                currency,
                 availableBalance,
-                resolvedCurrency,
+                currency,
                 safeToSpend,
-                resolvedCurrency,
+                currency,
                 estimatedBills,
-                resolvedCurrency,
+                currency,
                 goalSavingAmount
         );
     }

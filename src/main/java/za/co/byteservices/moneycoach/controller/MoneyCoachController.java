@@ -21,12 +21,40 @@ public class MoneyCoachController {
     @GetMapping("/api/coach/accounts/{accountId}/safe-to-spend")
     public SafeToSpendResponse getSafeToSpend(
             @PathVariable String accountId,
-            @RequestParam(required = false, defaultValue = "0") BigDecimal estimatedBills,
-            @RequestParam(required = false, defaultValue = "0") BigDecimal goalSavingAmount
+
+            @RequestParam(required = false, defaultValue = "0")
+            BigDecimal bondOrRent,
+
+            @RequestParam(required = false, defaultValue = "0")
+            BigDecimal schoolFees,
+
+            @RequestParam(required = false, defaultValue = "0")
+            BigDecimal insurance,
+
+            @RequestParam(required = false, defaultValue = "0")
+            BigDecimal groceries,
+
+            @RequestParam(required = false, defaultValue = "0")
+            BigDecimal fuel,
+
+            @RequestParam(required = false, defaultValue = "0")
+            BigDecimal subscriptions,
+
+            @RequestParam(required = false, defaultValue = "0")
+            BigDecimal otherBills,
+
+            @RequestParam(required = false, defaultValue = "0")
+            BigDecimal goalSavingAmount
     ) {
         return moneyCoachService.calculateSafeToSpend(
                 accountId,
-                estimatedBills,
+                bondOrRent,
+                schoolFees,
+                insurance,
+                groceries,
+                fuel,
+                subscriptions,
+                otherBills,
                 goalSavingAmount
         );
     }

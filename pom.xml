@@ -11,8 +11,8 @@
     <groupId>za.co.byteservices</groupId>
     <artifactId>investec-money-coach</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>investec-money-coach</name>
-    <description>investec-money-coach</description>
+    <name>LifePilot</name>
+    <description>Life-event financial simulation and money coaching on live Investec account data</description>
     <url/>
     <licenses>
         <license/>

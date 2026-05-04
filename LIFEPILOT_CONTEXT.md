@@ -1,8 +1,8 @@
-# Investec Money Coach Context
+# LifePilot Context
 
 ## Project Identity
 
-This repository is `investec-money-coach`, a Java 17 Spring Boot backend MVP for an AI money coaching product concept.
+This repository is `investec-money-coach`, now branded publicly as LifePilot. It is a Java 17 Spring Boot backend MVP for life-event financial simulation and money coaching on top of live Investec account data.
 
 The current implementation connects to the Investec Programmable Banking / Account Information API and exposes REST endpoints for:
 
@@ -12,13 +12,15 @@ The current implementation connects to the Investec Programmable Banking / Accou
 - Account balance retrieval
 - Account transaction retrieval
 - A basic safe-to-spend calculation
-- Hybrid AI money coach advice, grounded in deterministic safe-to-spend insights
+- Hybrid Money Coach advice, grounded in deterministic safe-to-spend insights
 
-The broader product vision is an AI Family Money Coach: a layer on top of banking data that helps users understand what is actually safe to spend after bills, planned savings, and financial goals.
+The broader product vision is LifePilot: a life-event financial simulator that helps users understand whether major life decisions are affordable before they commit to them.
+
+Money Coach remains the internal budgeting module inside LifePilot.
 
 ## Current Reality
 
-This is currently a backend integration MVP, not a complete AI coach.
+This is currently a backend integration MVP with a working Money Coach module. It is not yet a complete LifePilot scenario simulator.
 
 Implemented:
 
@@ -30,13 +32,17 @@ Implemented:
 - Safe-to-spend calculation: `MoneyCoachService`
 - REST controllers: `InvestecController`, `MoneyCoachController`
 - DTOs for token, account, balance, transaction, and safe-to-spend responses
-- AI advice DTO and risk model: `MoneyCoachAdviceResponse`, `MoneyCoachRiskLevel`
-- Deterministic advice service: `MoneyCoachAdviceService`
+- Money Coach advice DTO and risk model: `MoneyCoachAdviceResponse`, `MoneyCoachRiskLevel`
+- Deterministic Money Coach advice service: `MoneyCoachAdviceService`
 - Optional OpenAI advice rewrite client: `OpenAiAdviceClient`
 - Basic Spring context load test
 
 Not yet implemented:
 
+- LifePilot scenario simulation endpoint
+- Scenario request/response DTOs
+- Projected safe-to-spend after life events
+- Survival budget impact calculation
 - Mandatory AI/LLM dependency; advice works deterministically when OpenAI config is absent
 - Transaction categorization logic using `SpendingCategory`
 - Persistent users, budgets, goals, or spending rules
@@ -94,10 +100,14 @@ Investec support endpoints:
 - `GET /api/investec/accounts/{accountId}/balance`
 - `GET /api/investec/accounts/{accountId}/transactions?fromDate=YYYY-MM-DD&toDate=YYYY-MM-DD`
 
-Money coach endpoint:
+Money Coach module endpoints:
 
 - `GET /api/coach/accounts/{accountId}/safe-to-spend`
 - `GET /api/coach/accounts/{accountId}/advice`
+
+Planned LifePilot endpoint:
+
+- `POST /api/lifepilot/scenarios`
 
 Safe-to-spend query parameters:
 
@@ -142,6 +152,12 @@ Current request flow for advice:
 MoneyCoachController -> MoneyCoachAdviceService -> MoneyCoachService -> deterministic advice -> optional OpenAiAdviceClient rewrite
 ```
 
+Planned LifePilot request flow:
+
+```text
+LifePilotController -> LifePilotScenarioService -> MoneyCoachService -> scenario impact calculation -> optional AI explanation
+```
+
 There is no database. All coaching inputs are passed as query parameters at request time.
 
 ## Development Commands
@@ -168,14 +184,16 @@ http://localhost:8080/api/investec/config-check
 
 Recommended next product increments:
 
-1. Add unit tests for `MoneyCoachService` with mocked balance data.
-2. Add validation for negative bill and savings inputs.
-3. Replace query-parameter coaching inputs with a proper request model.
-4. Add transaction categorization and monthly spend summaries.
-5. Add goal and recurring bill models.
-6. Add a persistence layer.
-7. Expand AI coaching prompts only after deterministic money calculations are reliable.
-8. Keep guardrails so generated coaching is educational, explainable, and not regulated financial advice.
+1. Add the LifePilot scenario request/response model.
+2. Add `POST /api/lifepilot/scenarios`.
+3. Use the current Money Coach safe-to-spend engine as the baseline calculation.
+4. Calculate projected safe-to-spend after a life event.
+5. Return risk level, monthly impact, survival guidance, and recommendations.
+6. Add validation for negative bill, savings, and scenario inputs.
+7. Replace query-parameter coaching inputs with a proper request model.
+8. Add transaction categorization and monthly spend summaries.
+9. Add goal and recurring bill models.
+10. Add a persistence layer.
 
 ## Investec Usage Assessment
 
@@ -198,11 +216,15 @@ Key production gaps:
 
 ## How Assistants Should Work In This Repo
 
-When `/moneycoach` is invoked, load this file first and treat it as the project brief.
+When `/lifepilot` is invoked, load this file first and treat it as the project brief.
+
+When `/moneycoach` is invoked, treat it as a compatibility alias for `/lifepilot`.
 
 Default behavior:
 
 - Preserve the MVP's simple Spring Boot style unless the user asks for larger architecture changes.
+- Treat LifePilot as the public product name.
+- Treat Money Coach as the internal budgeting module.
 - Keep financial calculations deterministic and tested before adding AI-generated coaching.
 - Do not commit secrets or real banking data.
 - Treat all banking data as sensitive.

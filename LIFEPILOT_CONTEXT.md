@@ -13,6 +13,7 @@ The current implementation connects to the Investec Programmable Banking / Accou
 - Account transaction retrieval
 - A basic safe-to-spend calculation
 - Hybrid Money Coach advice, grounded in deterministic safe-to-spend insights
+- LifePilot scenario simulation for life-event monthly impact
 
 The broader product vision is LifePilot: a life-event financial simulator that helps users understand whether major life decisions are affordable before they commit to them.
 
@@ -20,7 +21,7 @@ Money Coach remains the internal budgeting module inside LifePilot.
 
 ## Current Reality
 
-This is currently a backend integration MVP with a working Money Coach module. It is not yet a complete LifePilot scenario simulator.
+This is currently a backend integration MVP with a working Money Coach module and first LifePilot scenario simulator.
 
 Implemented:
 
@@ -35,13 +36,14 @@ Implemented:
 - Money Coach advice DTO and risk model: `MoneyCoachAdviceResponse`, `MoneyCoachRiskLevel`
 - Deterministic Money Coach advice service: `MoneyCoachAdviceService`
 - Optional OpenAI advice rewrite client: `OpenAiAdviceClient`
+- LifePilot scenario DTOs: `LifePilotScenarioRequest`, `LifePilotScenarioResponse`
+- LifePilot scenario type model: `LifePilotScenarioType`
+- LifePilot scenario service: `LifePilotScenarioService`
+- LifePilot scenario controller: `LifePilotController`
 - Basic Spring context load test
 
 Not yet implemented:
 
-- LifePilot scenario simulation endpoint
-- Scenario request/response DTOs
-- Projected safe-to-spend after life events
 - Survival budget impact calculation
 - Mandatory AI/LLM dependency; advice works deterministically when OpenAI config is absent
 - Transaction categorization logic using `SpendingCategory`
@@ -184,16 +186,13 @@ http://localhost:8080/api/investec/config-check
 
 Recommended next product increments:
 
-1. Add the LifePilot scenario request/response model.
-2. Add `POST /api/lifepilot/scenarios`.
-3. Use the current Money Coach safe-to-spend engine as the baseline calculation.
-4. Calculate projected safe-to-spend after a life event.
-5. Return risk level, monthly impact, survival guidance, and recommendations.
-6. Add validation for negative bill, savings, and scenario inputs.
-7. Replace query-parameter coaching inputs with a proper request model.
-8. Add transaction categorization and monthly spend summaries.
-9. Add goal and recurring bill models.
-10. Add a persistence layer.
+1. Add survival budget impact calculation.
+2. Add validation for negative bill, savings, and scenario inputs.
+3. Add AI explanation support for scenario responses.
+4. Replace query-parameter coaching inputs with a proper request model.
+5. Add transaction categorization and monthly spend summaries.
+6. Add goal and recurring bill models.
+7. Add a persistence layer.
 
 ## Investec Usage Assessment
 

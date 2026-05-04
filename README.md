@@ -56,7 +56,7 @@ The current codebase already contains the internal **Money Coach** module, which
 | Budget risk classification | Built | `HEALTHY`, `TIGHT`, `CRITICAL` |
 | Recommendations | Built | Deterministic educational guidance |
 | OpenAI rewrite layer | Optional | Rewrites deterministic advice when configured |
-| Life event scenario simulator | Planned | Next major feature |
+| Life event scenario simulator | Built | Projects monthly life-event impact from current safe-to-spend |
 
 ## Example Insight
 
@@ -104,22 +104,55 @@ Example:
 GET /api/coach/accounts/{accountId}/advice?bondOrRent=15000&schoolFees=3000&insurance=2000&groceries=6000&fuel=3000&subscriptions=1000&otherBills=2000&goalSavingAmount=500
 ```
 
-### Planned LifePilot Scenario Endpoint
+### LifePilot Scenario Endpoint
 
 ```text
 POST /api/lifepilot/scenarios
 ```
 
-Planned request shape:
+Request shape:
+
+```json
+{
+  "accountId": "account-id",
+  "bondOrRent": 15000,
+  "schoolFees": 3000,
+  "insurance": 2000,
+  "groceries": 6000,
+  "fuel": 3000,
+  "subscriptions": 1000,
+  "otherBills": 2000,
+  "goalSavingAmount": 500,
+  "scenarioType": "PRIVATE_SCHOOL",
+  "scenarioName": "Send child to private school",
+  "monthlyCost": 6500,
+  "onceOffCost": 15000,
+  "durationMonths": 18
+}
+```
+
+Response shape:
 
 ```json
 {
   "accountId": "account-id",
   "scenarioType": "PRIVATE_SCHOOL",
   "scenarioName": "Send child to private school",
-  "monthlyCost": 6500,
-  "onceOffCost": 15000,
-  "durationMonths": 18
+  "availableBalance": 8764.11,
+  "currentSafeToSpend": -8435.89,
+  "projectedSafeToSpend": -14935.89,
+  "monthlyImpact": 6500.00,
+  "onceOffImpact": 15000.00,
+  "durationMonths": 18,
+  "currency": "ZAR",
+  "riskLevel": "CRITICAL",
+  "summary": "This life event would reduce your monthly safe-to-spend by ZAR 6500.00, leaving a projected safe-to-spend amount of ZAR -14935.89.",
+  "recommendations": [
+    "Delay this scenario until your current safe-to-spend is positive.",
+    "Reduce existing monthly commitments before adding this cost.",
+    "Build a separate buffer for the once-off cost before committing."
+  ],
+  "disclaimer": "Educational planning guidance only. This is not financial advice."
 }
 ```
 
@@ -139,7 +172,7 @@ flowchart LR
     Rewrite --> Response
 ```
 
-Planned LifePilot layer:
+LifePilot scenario layer:
 
 ```mermaid
 flowchart LR

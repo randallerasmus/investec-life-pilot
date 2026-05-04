@@ -9,7 +9,7 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>za.co.byteservices</groupId>
-    <artifactId>investec-money-coach</artifactId>
+    <artifactId>lifepilot</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>LifePilot</name>
     <description>Life-event financial simulation and money coaching on live Investec account data</description>

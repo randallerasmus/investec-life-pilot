@@ -2,7 +2,7 @@
 
 ## Project Identity
 
-This repository is `investec-money-coach`, now branded publicly as LifePilot. It is a Java 17 Spring Boot backend MVP for life-event financial simulation and money coaching on top of live Investec account data.
+This repository is `lifepilot`, a Java 17 Spring Boot backend MVP for life-event financial simulation and money coaching on top of live Investec account data.
 
 The current implementation connects to the Investec Programmable Banking / Account Information API and exposes REST endpoints for:
 

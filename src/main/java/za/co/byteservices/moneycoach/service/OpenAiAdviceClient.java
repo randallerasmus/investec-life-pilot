@@ -1,7 +1,7 @@
 package za.co.byteservices.moneycoach.service;
 
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -22,12 +22,11 @@ import java.util.Optional;
 public class OpenAiAdviceClient implements AiAdviceClient {
 
     private final OpenAiProperties properties;
-    private final ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper = new ObjectMapper();
     private final RestTemplate restTemplate = new RestTemplate();
 
-    public OpenAiAdviceClient(OpenAiProperties properties, ObjectMapper objectMapper) {
+    public OpenAiAdviceClient(OpenAiProperties properties) {
         this.properties = properties;
-        this.objectMapper = objectMapper;
     }
 
     @Override

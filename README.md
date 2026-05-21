@@ -1,190 +1,215 @@
-<p align="center">
-  <img src="docs/assets/lifepilot-hero.svg" alt="LifePilot banner showing a financial scenario simulation dashboard" width="100%" />
-</p>
+# LifePilot AI
 
-<h1 align="center">LifePilot</h1>
+LifePilot AI is a Java 17 / Spring Boot backend that uses Investec account data to produce deterministic budgeting insight, life-event simulations, grounded AI coaching, lightweight retrieval, evaluation scaffolding, and responsible AI guardrails.
 
-<p align="center">
-  <strong>See the financial impact of a life decision before you make it.</strong>
-</p>
+It keeps the existing Money Coach MVP intact and extends it into a portfolio-ready fintech AI backend.
 
-<p align="center">
-  <img alt="Java 17" src="https://img.shields.io/badge/Java-17+-F97316?style=for-the-badge&logo=openjdk&logoColor=white" />
-  <img alt="Spring Boot" src="https://img.shields.io/badge/Spring%20Boot-4.0-22C55E?style=for-the-badge&logo=springboot&logoColor=white" />
-  <img alt="Maven" src="https://img.shields.io/badge/Maven-Build-C2410C?style=for-the-badge&logo=apachemaven&logoColor=white" />
-  <img alt="Investec API" src="https://img.shields.io/badge/Investec-Open%20API-0F172A?style=for-the-badge" />
-  <img alt="OpenAI Optional" src="https://img.shields.io/badge/OpenAI-Optional-10A37F?style=for-the-badge&logo=openai&logoColor=white" />
-</p>
+## What It Does
 
-<p align="center">
-  <a href="#what-it-is">What it is</a> |
-  <a href="#what-works-now">What works now</a> |
-  <a href="#api">API</a> |
-  <a href="#architecture">Architecture</a> |
-  <a href="#run-it">Run it</a>
-</p>
+- Connects to the Investec Open API for accounts, balances, and transactions
+- Calculates baseline safe-to-spend values
+- Simulates life-event affordability scenarios
+- Stores an in-memory financial knowledge base for simple RAG-style retrieval
+- Produces grounded AI coaching answers using deterministic affordability logic plus retrieved knowledge
+- Checks answers for risky financial claims and rewrites them into safer educational wording
+- Exposes default evaluation scenarios for retrieval, groundedness, correctness, and guardrail quality
 
----
+## New AI Modules
 
-## What It Is
+1. `KnowledgeRagService`
+   - In-memory knowledge store
+   - Add and list knowledge documents
+   - Keyword-scored search with snippets and relevance scores
+   - Structured so embeddings / pgvector can be added later
 
-**LifePilot** is a Spring Boot backend MVP that turns live Investec account data into practical life-planning insight.
+2. `AiCoachService`
+   - Accepts account-aware coaching questions
+   - Reuses Investec-backed balance and transaction data
+   - Uses `SafeToSpendEngineService` and `KnowledgeRagService`
+   - Applies `ResponsibleAiGuardrailsService` before returning the answer
+   - Optionally rewrites deterministic coaching through the existing OpenAI advice client when configured
 
-Most banking apps show a balance. LifePilot is designed to answer the harder question:
+3. `SafeToSpendEngineService`
+   - Advanced safe-to-spend logic
+   - Considers balance, recent transactions, estimated recurring expenses, emergency buffer, payday, and planned purchase amount
+   - Falls back safely when Investec data is unavailable in local development
 
-> "Can my real life afford this decision?"
+4. `EvaluationService`
+   - Returns default evaluation scenarios for common coaching questions
+   - Includes criteria for retrieval quality, calculation correctness, groundedness, hallucination risk, and guardrail compliance
 
-The current codebase already contains the internal **Money Coach** module, which calculates safe-to-spend money, classifies budget risk, and returns educational recommendations. The next product layer is the LifePilot scenario simulator: "What happens if I buy a second car, send my child to private school, move city, take unpaid leave, or start a side business?"
+5. `ResponsibleAiGuardrailsService`
+   - Detects risky language such as guaranteed returns, certainty claims, reckless loan advice, and unsupported financial instructions
+   - Rewrites high-risk wording into educational guidance
+   - Appends a financial-safety disclaimer
 
-## The Product Idea
+## Package Structure
 
-| Life decision | What LifePilot should simulate |
-| --- | --- |
-| Private school | Monthly fee impact, safe-to-spend drop, survival budget |
-| New house or bond | Higher repayment impact, buffer risk, goal trade-offs |
-| New baby | Once-off costs, recurring costs, emergency fund pressure |
-| Career change | Income gap, runway, spending reductions |
-| Overseas holiday | Monthly savings target, timeline, affordability risk |
-
-## What Works Now
-
-| Capability | Status | Notes |
-| --- | --- | --- |
-| Live Investec API auth | Built | Uses OAuth2 client credentials and API key |
-| Accounts, balances, transactions | Built | Reads account data from Investec endpoints |
-| Safe-to-spend calculation | Built | `availableBalance - estimatedBills - goalSavingAmount` |
-| Budget risk classification | Built | `HEALTHY`, `TIGHT`, `CRITICAL` |
-| Recommendations | Built | Deterministic educational guidance |
-| OpenAI rewrite layer | Optional | Rewrites deterministic advice when configured |
-| Life event scenario simulator | Built | Projects monthly life-event impact from current safe-to-spend |
-
-## Example Insight
-
-```json
-{
-  "availableBalance": 8764.11,
-  "estimatedBills": 16700.00,
-  "goalSavingAmount": 500.00,
-  "safeToSpend": -8435.89,
-  "currency": "ZAR",
-  "riskLevel": "CRITICAL",
-  "summary": "You are short by ZAR 8435.89 after protecting estimated bills of ZAR 16700.00 and goal savings of ZAR 500.00.",
-  "recommendations": [
-    "Reduce or delay non-essential spending until your bills and savings target are covered.",
-    "Review bill estimates and adjust the savings target if the shortfall is temporary.",
-    "Avoid new discretionary commitments until your safe-to-spend amount is positive."
-  ],
-  "aiGenerated": false,
-  "disclaimer": "Educational budgeting guidance only. This is not financial advice."
-}
-```
-
-## API
-
-### Investec Support Endpoints
+Root package:
 
 ```text
-GET /api/investec/config-check
-GET /api/investec/token-check
-GET /api/investec/accounts
-GET /api/investec/accounts/{accountId}/balance
-GET /api/investec/accounts/{accountId}/transactions?fromDate=YYYY-MM-DD&toDate=YYYY-MM-DD
+za.co.byteservices.moneycoach
 ```
 
-### Money Coach Module
+Key areas:
 
 ```text
-GET /api/coach/accounts/{accountId}/safe-to-spend
-GET /api/coach/accounts/{accountId}/advice
+controller/
+  InvestecController
+  MoneyCoachController
+  LifePilotController
+  LifePilotAiController
+
+service/
+  InvestecAuthService
+  InvestecAccountService
+  MoneyCoachService
+  MoneyCoachAdviceService
+  LifePilotScenarioService
+  KnowledgeRagService
+  AiCoachService
+  SafeToSpendEngineService
+  EvaluationService
+  ResponsibleAiGuardrailsService
+  OpenAiAdviceClient
+
+dto/
+  Existing Investec / coach / scenario DTOs
+  New AI request and response DTOs
+
+config/
+  InvestecApiProperties
+  OpenAiProperties
 ```
 
-Example:
+## REST Endpoints
+
+Existing endpoints remain available:
 
 ```text
-GET /api/coach/accounts/{accountId}/advice?bondOrRent=15000&schoolFees=3000&insurance=2000&groceries=6000&fuel=3000&subscriptions=1000&otherBills=2000&goalSavingAmount=500
-```
+GET  /api/investec/config-check
+GET  /api/investec/token-check
+GET  /api/investec/accounts
+GET  /api/investec/accounts/{accountId}/balance
+GET  /api/investec/accounts/{accountId}/transactions?fromDate=YYYY-MM-DD&toDate=YYYY-MM-DD
 
-### LifePilot Scenario Endpoint
+GET  /api/coach/accounts/{accountId}/safe-to-spend
+GET  /api/coach/accounts/{accountId}/advice
 
-```text
 POST /api/lifepilot/scenarios
 ```
 
-Request shape:
+New LifePilot AI endpoints:
+
+```text
+GET  /api/lifepilot/knowledge/documents
+POST /api/lifepilot/knowledge/documents
+POST /api/lifepilot/knowledge/search
+POST /api/lifepilot/safe-to-spend/accounts/{accountId}/advanced
+POST /api/lifepilot/ai-coach/accounts/{accountId}/ask
+POST /api/lifepilot/guardrails/check
+GET  /api/lifepilot/evaluations/default
+```
+
+## Example Requests
+
+### Add a knowledge document
 
 ```json
 {
-  "accountId": "account-id",
-  "bondOrRent": 15000,
-  "schoolFees": 3000,
-  "insurance": 2000,
-  "groceries": 6000,
-  "fuel": 3000,
-  "subscriptions": 1000,
-  "otherBills": 2000,
-  "goalSavingAmount": 500,
-  "scenarioType": "PRIVATE_SCHOOL",
-  "scenarioName": "Send child to private school",
-  "monthlyCost": 6500,
-  "onceOffCost": 15000,
-  "durationMonths": 18
+  "title": "Emergency Fund Basics",
+  "content": "An emergency fund helps cover unexpected expenses without relying on debt.",
+  "source": "internal-financial-education"
 }
 ```
 
-Response shape:
+### Search the knowledge base
 
 ```json
 {
+  "question": "Why do I need an emergency fund?"
+}
+```
+
+### Advanced safe-to-spend
+
+```json
+{
+  "payday": "2026-05-31",
+  "emergencyBuffer": 1000,
+  "plannedPurchaseAmount": 2500,
+  "plannedPurchaseDescription": "Golf clubs"
+}
+```
+
+### Ask the AI coach
+
+```json
+{
+  "question": "Can I afford to spend R2500 on golf clubs this month?",
+  "payday": "2026-05-31",
+  "emergencyBuffer": 1000
+}
+```
+
+### Guardrail check
+
+```json
+{
+  "answer": "You should invest all your money in one stock because it will definitely go up."
+}
+```
+
+## Example Responses
+
+### AI coach response shape
+
+```json
+{
+  "answer": "For the question 'Can I afford to spend R2500 on golf clubs this month?', the purchase may be possible but the buffer is tight before payday. This is educational guidance based on available transaction data, not regulated financial advice.",
   "accountId": "account-id",
-  "scenarioType": "PRIVATE_SCHOOL",
-  "scenarioName": "Send child to private school",
-  "availableBalance": 8764.11,
-  "currentSafeToSpend": -8435.89,
-  "projectedSafeToSpend": -14935.89,
-  "monthlyImpact": 6500.00,
-  "onceOffImpact": 15000.00,
-  "durationMonths": 18,
-  "currency": "ZAR",
-  "riskLevel": "CRITICAL",
-  "summary": "This life event would reduce your monthly safe-to-spend by ZAR 6500.00, leaving a projected safe-to-spend amount of ZAR -14935.89.",
-  "recommendations": [
-    "Delay this scenario until your current safe-to-spend is positive.",
-    "Reduce existing monthly commitments before adding this cost.",
-    "Build a separate buffer for the once-off cost before committing."
+  "riskLevel": "TIGHT",
+  "confidence": 82,
+  "basedOn": [
+    "Current balance 12500.00",
+    "Estimated recurring expenses 7200.00",
+    "Safe to spend before purchase 4300.00"
   ],
-  "disclaimer": "Educational planning guidance only. This is not financial advice."
+  "retrievedKnowledge": [
+    {
+      "title": "Emergency Fund Basics",
+      "source": "internal-financial-education",
+      "contentSnippet": "An emergency fund helps cover unexpected expenses...",
+      "relevanceScore": 5
+    }
+  ],
+  "guardrailWarnings": []
 }
 ```
 
-## Architecture
+### Guardrail response shape
 
-```mermaid
-flowchart LR
-    User[User or API Client] --> Controller[Spring REST Controllers]
-    Controller --> Coach[Money Coach Module]
-    Coach --> Investec[Investec API Integration]
-    Investec --> LiveData[Live Account Data]
-    Coach --> Advice[Risk + Recommendations]
-    Advice --> AI{OpenAI configured?}
-    AI -- No --> Deterministic[Deterministic response]
-    AI -- Yes --> Rewrite[AI rewritten coaching summary]
-    Deterministic --> Response[LifePilot API Response]
-    Rewrite --> Response
+```json
+{
+  "warnings": [
+    "Detected guaranteed-return or certainty language.",
+    "Detected concentrated investment advice presented too strongly."
+  ],
+  "safeAnswer": "Based on the available account and transaction context, avoid treating this as a guaranteed outcome. This is educational guidance based on available transaction data, not regulated financial advice.",
+  "rewritten": true
+}
 ```
 
-LifePilot scenario layer:
+## Local Run
 
-```mermaid
-flowchart LR
-    Scenario[Life Event Scenario] --> Baseline[Current Safe-to-Spend]
-    Baseline --> Projection[Projected Safe-to-Spend]
-    Projection --> Impact[Monthly Impact + Risk]
-    Impact --> Recommendations[LifePilot Recommendations]
-```
+### Requirements
 
-## Configuration
+- Java 17
+- Maven 3.9+ or the included Maven wrapper
 
-Required environment variables:
+### Environment variables
+
+Required for live Investec calls:
 
 ```text
 INVESTEC_CLIENT_ID
@@ -192,74 +217,105 @@ INVESTEC_CLIENT_SECRET
 INVESTEC_API_KEY
 ```
 
-Optional OpenAI environment variables:
+Optional for OpenAI rewriting:
 
 ```text
 OPENAI_API_KEY
 OPENAI_MODEL
 ```
 
-If OpenAI is not configured, the advice endpoint still returns deterministic recommendations.
+Configured properties in `src/main/resources/application.properties`:
 
-## Run It
+```properties
+spring.application.name=lifepilot
+server.port=8080
 
-Start the backend:
+investec.base-url=https://openapi.investec.com
+investec.client-id=${INVESTEC_CLIENT_ID:}
+investec.client-secret=${INVESTEC_CLIENT_SECRET:}
+investec.api-key=${INVESTEC_API_KEY:}
+
+openai.base-url=https://api.openai.com/v1
+openai.api-key=${OPENAI_API_KEY:}
+openai.model=${OPENAI_MODEL:}
+```
+
+### Run tests
+
+```powershell
+.\mvnw.cmd clean test
+```
+
+If you prefer system Maven:
+
+```powershell
+mvn clean test
+```
+
+### Run the app
 
 ```powershell
 .\mvnw.cmd spring-boot:run
 ```
 
-Default URL:
+Default base URL:
 
 ```text
 http://localhost:8080
 ```
 
-Run tests:
+## curl Examples
 
-```powershell
-.\mvnw.cmd test
+```bash
+curl -X GET http://localhost:8080/api/lifepilot/knowledge/documents
 ```
 
-## Tech Stack
+```bash
+curl -X POST http://localhost:8080/api/lifepilot/knowledge/documents \
+  -H "Content-Type: application/json" \
+  -d "{\"title\":\"Emergency Fund Basics\",\"content\":\"An emergency fund helps cover unexpected expenses...\",\"source\":\"internal-financial-education\"}"
+```
 
-| Layer | Technology |
-| --- | --- |
-| Language | Java 17 |
-| Backend | Spring Boot 4.0.6 |
-| Build | Maven |
-| Banking integration | Investec Open API |
-| AI layer | Optional OpenAI Responses API |
-| Tests | JUnit 5 / Spring Boot test |
+```bash
+curl -X POST http://localhost:8080/api/lifepilot/knowledge/search \
+  -H "Content-Type: application/json" \
+  -d "{\"question\":\"Why do I need an emergency fund?\"}"
+```
 
-## Showcase Positioning
+```bash
+curl -X POST http://localhost:8080/api/lifepilot/safe-to-spend/accounts/acc-123/advanced \
+  -H "Content-Type: application/json" \
+  -d "{\"payday\":\"2026-05-31\",\"emergencyBuffer\":1000,\"plannedPurchaseAmount\":2500,\"plannedPurchaseDescription\":\"Golf clubs\"}"
+```
 
-**One-line tagline:**
+```bash
+curl -X POST http://localhost:8080/api/lifepilot/ai-coach/accounts/acc-123/ask \
+  -H "Content-Type: application/json" \
+  -d "{\"question\":\"Can I afford to spend R2500 on golf clubs this month?\",\"payday\":\"2026-05-31\",\"emergencyBuffer\":1000}"
+```
 
-> LifePilot uses live Investec account data to show the financial impact of major life decisions before users commit to them.
+```bash
+curl -X POST http://localhost:8080/api/lifepilot/guardrails/check \
+  -H "Content-Type: application/json" \
+  -d "{\"answer\":\"You should invest all your money in one stock because it will definitely go up.\"}"
+```
 
-**Community categories:**
+```bash
+curl -X GET http://localhost:8080/api/lifepilot/evaluations/default
+```
 
-- Budgeting and personal finance
-- Automations and savings
-- AI and categorisation
-- Financial wellness
+## Notes
 
-## Safety Notes
+- The knowledge base is intentionally in-memory so the project remains easy to run.
+- The AI coach remains grounded in deterministic calculations and available transaction data.
+- OpenAI is optional. If it is not configured or the call fails, the app falls back to local deterministic guidance.
+- The project still does not provide regulated financial advice.
 
-LifePilot works with live banking data when configured with real Investec credentials.
+## Future Roadmap
 
-- Do not commit API keys, secrets, tokens, private certificates, or real customer data.
-- Prefer sandbox credentials for demos and public screenshots.
-- Treat all balances, account IDs, and transactions as sensitive.
-- Generated guidance must stay educational and must not be presented as regulated financial advice.
-
-## Disclaimer
-
-LifePilot provides educational budgeting and planning guidance only. It does not provide regulated financial advice and does not make financial decisions on behalf of users.
-
-## Author
-
-**Randall Erasmus**
-
-GitHub: [github.com/randallerasmus](https://github.com/randallerasmus)
+- pgvector-backed knowledge storage
+- Embeddings-based retrieval
+- Reranking and hybrid retrieval
+- Evaluation dashboard and regression suite
+- Transaction categorization improvements
+- React frontend for interactive coaching and life-event simulation

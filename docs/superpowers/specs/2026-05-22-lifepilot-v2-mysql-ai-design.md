@@ -1,20 +1,20 @@
-## LifePilot v2 MySQL + AI Product Design
+## LifePilot v2 Simulator + MySQL Add-ons Design
 
 ### Goal
 
-Turn LifePilot from a simulator-centric prototype into a stronger AI product demo with:
+Keep LifePilot centered on the simulator while adding stronger MySQL-backed support features:
 
 - MySQL-backed persistence for knowledge and evaluation history
-- A visible AI coach chat experience
-- A knowledge management surface
-- An evaluation report surface
+- A visible AI coach chat add-on
+- A knowledge management add-on
+- An evaluation report add-on
 - Existing deterministic financial calculations preserved as the source of truth
 
-This milestone should improve the project's interview story for AI/backend roles without introducing unnecessary infrastructure such as auth, vector databases, or multi-service deployment.
+This milestone should strengthen the simulator product without introducing unnecessary infrastructure such as auth, vector databases, or multi-service deployment.
 
 ### Product Shape
 
-LifePilot v2 will expose four user-facing surfaces:
+LifePilot v2 will expose four user-facing surfaces, with the simulator remaining the primary experience:
 
 1. `Simulator`
    The current life-event simulator remains the first screen and continues to use deterministic affordability logic grounded in Investec account data.
@@ -41,7 +41,7 @@ The existing Spring Boot backend remains a single service. The v2 change is addi
 - add MySQL persistence via Spring Data JPA
 - extend the frontend to expose the existing and new AI capabilities
 
-This keeps the architecture coherent for local development while making the backend more realistic and durable.
+This keeps the architecture coherent for local development while making the simulator product more durable and more helpful.
 
 ### Persistence Model
 
@@ -154,7 +154,7 @@ For this milestone, evaluation classification can be rules-based rather than mod
 
 ### Frontend Experience
 
-The frontend should evolve from a single simulator page into a compact multi-surface product.
+The frontend should evolve from a single simulator page into a compact multi-surface product, but the simulator should stay the landing experience.
 
 Recommended navigation:
 
@@ -165,7 +165,7 @@ Recommended navigation:
 
 #### Simulator
 
-Keep the current simulator intact with only minimal integration changes needed to fit the new navigation shell.
+Keep the current simulator intact with only minimal integration changes needed to fit the new navigation shell. It should remain the first tab and the clearest story in the UI.
 
 #### AI Coach
 
@@ -189,7 +189,7 @@ Add a management surface with:
 - create document form
 - optional search/filter input
 
-The goal is not full editorial tooling. It is a clean demo surface showing that the knowledge layer is real and persistent.
+The goal is not full editorial tooling. It is a clean surface showing that the simulator's supporting knowledge layer is real and persistent.
 
 #### Evaluations
 
@@ -201,7 +201,7 @@ Add a report screen with:
 - visible status badges
 - warnings and evidence inspection
 
-This should make the project's evaluation story concrete.
+This should make the add-on evaluation layer concrete without overshadowing the simulator.
 
 ### Error Handling
 
@@ -268,5 +268,6 @@ This milestone is complete when:
 - AI coach runs are persisted in MySQL
 - evaluation runs and their evidence/warnings are persisted in MySQL
 - frontend exposes Simulator, AI Coach, Knowledge, and Evaluations
+- simulator remains the primary landing experience and product focus
 - backend fallback behavior is explicit and tested
 - the app remains runnable locally with MySQL, Investec credentials, and optional OpenAI credentials

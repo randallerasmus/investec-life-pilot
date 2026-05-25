@@ -69,7 +69,7 @@ public class LifePilotAiController {
 
     @PostMapping("/api/lifepilot/ai-coach/accounts/{accountId}/ask")
     public AiCoachResponse askAiCoach(@PathVariable String accountId,
-                                      @Valid @RequestBody AiCoachQuestionRequest request) {
+                                      @Valid @RequestBody AiCoachQuestionRequest request ) {
         return aiCoachService.askQuestion(accountId, request);
     }
 

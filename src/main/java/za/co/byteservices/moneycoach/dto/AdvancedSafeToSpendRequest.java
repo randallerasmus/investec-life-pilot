@@ -4,6 +4,7 @@ import jakarta.validation.constraints.DecimalMin;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Objects;
 
 public class AdvancedSafeToSpendRequest {
 
@@ -44,5 +45,17 @@ public class AdvancedSafeToSpendRequest {
 
     public String getPlannedPurchaseDescription() {
         return plannedPurchaseDescription;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == null || getClass() != o.getClass()) return false;
+        AdvancedSafeToSpendRequest that = (AdvancedSafeToSpendRequest) o;
+        return Objects.equals(payday, that.payday) && Objects.equals(emergencyBuffer, that.emergencyBuffer) && Objects.equals(plannedPurchaseAmount, that.plannedPurchaseAmount) && Objects.equals(plannedPurchaseDescription, that.plannedPurchaseDescription);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(payday, emergencyBuffer, plannedPurchaseAmount, plannedPurchaseDescription);
     }
 }

@@ -4,6 +4,7 @@ public enum LifePilotScenarioType {
     PRIVATE_SCHOOL,
     SECOND_CAR,
     NEW_HOME,
+    HOME_RENOVATION,
     NEW_BABY,
     CAREER_CHANGE,
     OVERSEAS_HOLIDAY,

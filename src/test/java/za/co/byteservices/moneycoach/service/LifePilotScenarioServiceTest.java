@@ -6,6 +6,7 @@ import za.co.byteservices.moneycoach.dto.LifePilotScenarioResponse;
 import za.co.byteservices.moneycoach.dto.SafeToSpendResponse;
 import za.co.byteservices.moneycoach.model.LifePilotScenarioType;
 import za.co.byteservices.moneycoach.model.MoneyCoachRiskLevel;
+import za.co.byteservices.moneycoach.model.SurvivalStatus;
 
 import java.math.BigDecimal;
 
@@ -48,9 +49,31 @@ class LifePilotScenarioServiceTest {
         assertThat(response.getOnceOffImpact()).isEqualByComparingTo("15000.00");
         assertThat(response.getDurationMonths()).isEqualTo(18);
         assertThat(response.getRiskLevel()).isEqualTo(MoneyCoachRiskLevel.CRITICAL);
+        assertThat(response.getSurvivalStatus()).isEqualTo(SurvivalStatus.UNAFFORDABLE);
+        assertThat(response.getMonthlyBufferAfterScenario()).isEqualByComparingTo("0.00");
+        assertThat(response.getMonthlyShortfall()).isEqualByComparingTo("14935.89");
         assertThat(response.getSummary()).contains("reduce your monthly safe-to-spend by ZAR 6500.00");
+        assertThat(response.getSurvivalMessage())
+                .contains("does not fit")
+                .contains("ZAR 14935.89 short every month for the next 18 months")
+                .contains("once-off cost of ZAR 15000.00");
         assertThat(response.getRecommendations()).contains("Delay this scenario until your current safe-to-spend is positive.");
         assertThat(response.getDisclaimer()).isEqualTo("Educational planning guidance only. This is not financial advice.");
+    }
+
+    @Test
+    void omitsDropPercentWhenThereIsNoPositiveSafeToSpendToMeasureAgainst() {
+        whenSafeToSpendIs(new BigDecimal("8764.11"), new BigDecimal("16700.00"), new BigDecimal("500.00"), new BigDecimal("-8435.89"));
+
+        LifePilotScenarioResponse response = scenarioService.simulate(scenario(
+                LifePilotScenarioType.PRIVATE_SCHOOL,
+                "Send child to private school",
+                new BigDecimal("6500.00"),
+                new BigDecimal("15000.00"),
+                18
+        ));
+
+        assertThat(response.getSafeToSpendDropPercent()).isNull();
     }
 
     @Test
@@ -76,6 +99,14 @@ class LifePilotScenarioServiceTest {
 
         assertThat(response.getProjectedSafeToSpend()).isEqualByComparingTo("700.00");
         assertThat(response.getRiskLevel()).isEqualTo(MoneyCoachRiskLevel.TIGHT);
+        assertThat(response.getSurvivalStatus()).isEqualTo(SurvivalStatus.TIGHT);
+        assertThat(response.getMonthlyBufferAfterScenario()).isEqualByComparingTo("700.00");
+        assertThat(response.getMonthlyShortfall()).isEqualByComparingTo("0.00");
+        assertThat(response.getSafeToSpendDropPercent()).isEqualByComparingTo("80.0");
+        assertThat(response.getSurvivalMessage())
+                .contains("fits, but only just")
+                .contains("ZAR 700.00 of monthly room for the next 60 months")
+                .doesNotContain("once-off cost");
         assertThat(response.getRecommendations()).contains("Keep a larger monthly buffer before committing to this scenario.");
     }
 
@@ -102,7 +133,42 @@ class LifePilotScenarioServiceTest {
 
         assertThat(response.getProjectedSafeToSpend()).isEqualByComparingTo("10000.00");
         assertThat(response.getRiskLevel()).isEqualTo(MoneyCoachRiskLevel.HEALTHY);
+        assertThat(response.getSurvivalStatus()).isEqualTo(SurvivalStatus.AFFORDABLE);
+        assertThat(response.getMonthlyBufferAfterScenario()).isEqualByComparingTo("10000.00");
+        assertThat(response.getMonthlyShortfall()).isEqualByComparingTo("0.00");
+        assertThat(response.getSafeToSpendDropPercent()).isEqualByComparingTo("33.3");
+        assertThat(response.getSurvivalMessage())
+                .contains("fits your monthly position")
+                .contains("ZAR 10000.00 of room each month for the next 12 months")
+                .contains("once-off cost of ZAR 10000.00");
         assertThat(response.getRecommendations()).contains("This scenario appears affordable on the supplied monthly numbers, but keep bills and emergency savings protected.");
+    }
+
+    /**
+     * The safe-to-spend call is stubbed, so the bill and savings inputs on the
+     * request do not affect the result; only the scenario costs do.
+     */
+    private LifePilotScenarioRequest scenario(LifePilotScenarioType scenarioType,
+                                              String scenarioName,
+                                              BigDecimal monthlyCost,
+                                              BigDecimal onceOffCost,
+                                              Integer durationMonths) {
+        return new LifePilotScenarioRequest(
+                "acc-123",
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                scenarioType,
+                scenarioName,
+                monthlyCost,
+                onceOffCost,
+                durationMonths
+        );
     }
 
     private void whenSafeToSpendIs(BigDecimal availableBalance,

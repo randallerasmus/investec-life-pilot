@@ -7,6 +7,7 @@ import za.co.byteservices.moneycoach.dto.LifePilotScenarioRequest;
 import za.co.byteservices.moneycoach.dto.LifePilotScenarioResponse;
 import za.co.byteservices.moneycoach.model.LifePilotScenarioType;
 import za.co.byteservices.moneycoach.model.MoneyCoachRiskLevel;
+import za.co.byteservices.moneycoach.model.SurvivalStatus;
 import za.co.byteservices.moneycoach.service.BalanceForecastService;
 import za.co.byteservices.moneycoach.service.LifePilotScenarioService;
 
@@ -55,7 +56,12 @@ class LifePilotControllerTest {
                 18,
                 "ZAR",
                 MoneyCoachRiskLevel.CRITICAL,
+                SurvivalStatus.UNAFFORDABLE,
+                new BigDecimal("0.00"),
+                new BigDecimal("14935.89"),
+                null,
                 "This life event would reduce your monthly safe-to-spend by ZAR 6500.00.",
+                "On these numbers this decision does not fit.",
                 List.of("Delay this scenario until your current safe-to-spend is positive."),
                 "Educational planning guidance only. This is not financial advice."
         );

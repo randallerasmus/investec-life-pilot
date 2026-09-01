@@ -51,6 +51,31 @@ class SafeToSpendEngineServiceTest {
     }
 
     @Test
+    void countsPositiveAmountsWithDebitTypeAsOutflows() throws Exception {
+        when(investecAccountService.getBalance("acc-123")).thenReturn(balance("acc-123", "12500.00", "ZAR"));
+        when(investecAccountService.getTransactions(eq("acc-123"), any(), any()))
+                .thenReturn(transactions(
+                        debit("acc-123", "Rent debit order", "4500.00", LocalDate.now().minusDays(10)),
+                        debit("acc-123", "Groceries", "1800.00", LocalDate.now().minusDays(7)),
+                        debit("acc-123", "Fuel", "900.00", LocalDate.now().minusDays(5)),
+                        credit("acc-123", "Salary", "22000.00", LocalDate.now().minusDays(15))
+                ));
+
+        AdvancedSafeToSpendResponse response = service.calculateAdvancedSafeToSpend("acc-123", new AdvancedSafeToSpendRequest(
+                LocalDate.now().plusDays(10),
+                new BigDecimal("1000.00"),
+                BigDecimal.ZERO,
+                null
+        ));
+
+        // The live Investec API reports positive amounts with a DEBIT type. Only the
+        // rent debit order is recurring, and the salary credit must not be counted
+        // as an outflow.
+        assertThat(response.getEstimatedRecurringExpenses()).isEqualByComparingTo("4500.00");
+        assertThat(response.getSafeToSpend()).isEqualByComparingTo("7000.00");
+    }
+
+    @Test
     void fallsBackGracefullyWhenInvestecDataIsUnavailable() {
         when(investecAccountService.getBalance("acc-123")).thenThrow(new IllegalStateException("No token"));
 
@@ -90,11 +115,36 @@ class SafeToSpendEngineServiceTest {
                                                                String description,
                                                                String amount,
                                                                LocalDate transactionDate) throws Exception {
+        return transaction(accountId, description, amount, transactionDate, null);
+    }
+
+    private InvestecTransactionResponse.Transaction debit(String accountId,
+                                                          String description,
+                                                          String amount,
+                                                          LocalDate transactionDate) throws Exception {
+        return transaction(accountId, description, amount, transactionDate, "DEBIT");
+    }
+
+    private InvestecTransactionResponse.Transaction credit(String accountId,
+                                                           String description,
+                                                           String amount,
+                                                           LocalDate transactionDate) throws Exception {
+        return transaction(accountId, description, amount, transactionDate, "CREDIT");
+    }
+
+    private InvestecTransactionResponse.Transaction transaction(String accountId,
+                                                               String description,
+                                                               String amount,
+                                                               LocalDate transactionDate,
+                                                               String type) throws Exception {
         InvestecTransactionResponse.Transaction transaction = new InvestecTransactionResponse.Transaction();
         setField(transaction, "accountId", accountId);
         setField(transaction, "description", description);
         setField(transaction, "amount", new BigDecimal(amount));
         setField(transaction, "transactionDate", transactionDate.toString());
+        if (type != null) {
+            setField(transaction, "type", type);
+        }
         return transaction;
     }
 

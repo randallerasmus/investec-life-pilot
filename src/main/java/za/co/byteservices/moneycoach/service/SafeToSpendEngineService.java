@@ -98,9 +98,9 @@ public class SafeToSpendEngineService {
         BigDecimal totalOutflow = BigDecimal.ZERO;
 
         for (InvestecTransactionResponse.Transaction transaction : transactions) {
-            BigDecimal amount = valueOrZero(transaction.getAmount());
-            if (amount.compareTo(BigDecimal.ZERO) < 0) {
-                totalOutflow = totalOutflow.add(amount.abs());
+            BigDecimal amount = TransactionAmounts.debitAmount(transaction);
+            if (amount.signum() > 0) {
+                totalOutflow = totalOutflow.add(amount);
                 String key = normalize(transaction.getDescription());
                 if (!key.isBlank()) {
                     descriptionCounts.merge(key, 1, Integer::sum);
@@ -110,8 +110,8 @@ public class SafeToSpendEngineService {
 
         BigDecimal recurringCandidates = BigDecimal.ZERO;
         for (InvestecTransactionResponse.Transaction transaction : transactions) {
-            BigDecimal amount = valueOrZero(transaction.getAmount());
-            if (amount.compareTo(BigDecimal.ZERO) >= 0) {
+            BigDecimal amount = TransactionAmounts.debitAmount(transaction);
+            if (amount.signum() == 0) {
                 continue;
             }
             String description = normalize(transaction.getDescription());
@@ -123,7 +123,7 @@ public class SafeToSpendEngineService {
                     || description.contains("debit order");
             boolean repeated = descriptionCounts.getOrDefault(description, 0) > 1;
             if (keywordMatch || repeated) {
-                recurringCandidates = recurringCandidates.add(amount.abs());
+                recurringCandidates = recurringCandidates.add(amount);
             }
         }
 

@@ -18,6 +18,30 @@ The broader product vision is LifePilot: a life-event financial simulator that h
 
 Money Coach remains the internal budgeting module inside LifePilot.
 
+## Repositories
+
+LifePilot is two repositories. This file lives in the backend and is the brief for both.
+
+| Repository | Local path | Contents |
+| --- | --- | --- |
+| `investec-life-pilot` | `C:\INTERFRONT2026\investec-life-pilot` | Spring Boot backend, and the programmable card code under `card/` |
+| `lifepilot-frontend` | `C:\INTERFRONT2026\lifepilot-frontend` | Vite + React + shadcn UI, talks to the backend over HTTP |
+
+The backend serves on `8080` and the frontend dev server on `8081`, which is the
+origin `CorsConfig` allows. Both defaulted to `8080` until September 2026, so
+whichever process started first won and the other failed to bind.
+
+## Current Work: Future You Bounty
+
+The active goal is the Investec "Future You" Q3 2026 bounty challenge, which
+runs 27 August to 30 September 2026. The brief asks for a tool that forecasts
+future balances, spots recurring payments, highlights upcoming cashflow risks,
+or answers "can I afford this?", built on the Investec API or programmable
+cards.
+
+All four are now covered, which shapes what is worth building next: the
+differentiator is depth and demonstrability rather than breadth.
+
 ## Current Reality
 
 This is a backend integration MVP. All calculations are deterministic and unit-tested; AI is optional and only ever rewrites numbers the deterministic layer already produced.
@@ -62,9 +86,8 @@ Tests
 
 - 15 test classes under `src/test/java`, covering every service plus the controllers, CORS config, and Spring context load
 
-Not yet implemented:
+Not yet implemented on `main`:
 
-- Survival budget impact calculation
 - Transaction categorization using `SpendingCategory` (the enum exists but nothing populates it)
 - Persistent users, budgets, goals, or spending rules
 - Database persistence — the knowledge store is in-memory (`CopyOnWriteArrayList`) and resets on restart
@@ -77,8 +100,67 @@ Not yet implemented:
 - Production-grade error handling
 - Rate limiting
 - OpenAPI documentation
-- Frontend/mobile experience
+- A mobile experience; the web frontend lives in `lifepilot-frontend`
 - Financial-advice guardrails beyond the guardrail keyword scan and disclaimer wording
+
+## In Flight On Branches
+
+Work finished but not yet merged, as of 3 September 2026. Everything above
+describes `main`; everything here is on a branch. Merge in this order, because
+the forecast screen reads fields the survival branch adds.
+
+| Branch | Repo | What it adds |
+| --- | --- | --- |
+| `docs/refresh-lifepilot-context` | backend | This file |
+| `feature/scenario-survival-contract` | backend | Survival fields on the scenario response |
+| `feature/programmable-card-guardrail` | backend | Card authorisation guardrail under `card/` |
+| `feature/balance-forecast-screen` | frontend | Forecast screen, contract and port fixes |
+
+### `feature/scenario-survival-contract`
+
+Adds `SurvivalStatus` (AFFORDABLE / TIGHT / UNAFFORDABLE) and five fields to
+`LifePilotScenarioResponse`: `survivalStatus`, `monthlyBufferAfterScenario`,
+`monthlyShortfall`, `safeToSpendDropPercent`, `survivalMessage`. This closes the
+survival budget impact calculation that sat at the top of Product Direction.
+
+The frontend was already reading all five, so until this merges the results
+panel renders an empty status badge and two blank money tiles. `HOME_RENOVATION`
+joins `LifePilotScenarioType`; the dropdown already offered it, so choosing it
+failed enum binding.
+
+Buffer and shortfall are split so exactly one carries a figure.
+`safeToSpendDropPercent` is null, not zero, when there is no positive
+safe-to-spend to measure against. `LifePilotScenarioResponseJsonTest` pins the
+JSON key set, because the drift that blanked the panel was invisible from both
+sides.
+
+### `feature/programmable-card-guardrail`
+
+Card code that declines a swipe the forecast cannot afford, measured against
+discretionary headroom rather than the balance. See `card/README.md`.
+
+The shape is forced by a hard constraint: `beforeTransaction` gets two seconds
+including the round trip, and a snapshot build measured 4.7 seconds locally even
+with the Investec calls failing fast. So the card never computes. It reads a
+cached snapshot in about 9ms, and `afterTransaction`, which has fifteen seconds,
+rebuilds it.
+
+Adds `CardGuardrailProperties`, `SpendingSnapshot`, `SpendingSnapshotService`,
+`CardAuthorizationService`, `CardController`, `CardDecision`, `CardAssessment`,
+and `card/main.js`.
+
+Never verified inside the Investec sandbox. Hook names, the 2s/15s windows,
+`process.env`, and the authorisation fields were taken from the Investec docs
+and community repos rather than assumed, and the card code avoids optional
+chaining and `AbortController` because that runtime could not be tested against.
+
+### `feature/balance-forecast-screen` (frontend)
+
+Adds the `/forecast` route: balance curve, shaded risk windows, KPI tiles,
+recurring payment and income tables. Also moves the dev server to 8081 and
+aligns the scenario types with the backend enum. Never rendered in a browser
+during development, so the chart is unchecked for label collisions at long
+horizons.
 
 ## Tech Stack
 
@@ -115,6 +197,17 @@ Default OpenAI base URL: `https://api.openai.com/v1`
 
 CORS allows `http://localhost:8081` and `http://127.0.0.1:8081` on `/api/**` for `GET`, `POST`, `OPTIONS`.
 
+Card guardrail environment variables, on `feature/programmable-card-guardrail`:
+
+- `LIFEPILOT_CARD_SHARED_SECRET` — required. The card endpoints return 503 while
+  it is blank. They must be reachable from the Investec sandbox and they answer
+  with balance data, so an unconfigured deployment refuses to serve rather than
+  serving anyone.
+- `LIFEPILOT_CARD_MONITOR_ONLY` — defaults to `true`. The guardrail reports its
+  verdict without ever declining.
+- `LIFEPILOT_CARD_EMERGENCY_BUFFER` — defaults to `500.00`.
+- `LIFEPILOT_CARD_SNAPSHOT_TTL_SECONDS` — defaults to `300`.
+
 ## Important Endpoints
 
 Investec support endpoints:
@@ -145,6 +238,14 @@ LifePilot AI endpoints:
 - `POST /api/lifepilot/ai-coach/accounts/{accountId}/ask`
 - `POST /api/lifepilot/guardrails/check`
 - `GET /api/lifepilot/evaluations/default`
+
+Card endpoints, on `feature/programmable-card-guardrail`. Both require the
+`X-LifePilot-Card-Key` header:
+
+- `POST /api/lifepilot/cards/authorization` — answers from cache, does no
+  outbound work. Called from `beforeTransaction`, which has a 2s budget.
+- `POST /api/lifepilot/cards/accounts/{accountId}/snapshot` — rebuilds the
+  snapshot. Slow. Called from `afterTransaction`, which has 15s.
 
 ## Calculations
 
@@ -234,7 +335,20 @@ LifePilotAiController -> AiCoachService -> SafeToSpendEngineService -> Investec 
                                         -> ResponsibleAiGuardrailsService -> final answer
 ```
 
-There is no database. Coaching inputs are passed per request, and the knowledge store lives in memory for the life of the process.
+Card authorisation, on `feature/programmable-card-guardrail`. Two flows, split
+by how much time each hook has:
+
+```text
+beforeTransaction (2s)  -> CardController -> CardAuthorizationService -> cached SpendingSnapshot
+                                          -> no outbound calls, ~9ms
+
+afterTransaction (15s)  -> CardController -> SpendingSnapshotService -> BalanceForecastService
+                                          -> Investec balance + 180 days of transactions, ~4.7s
+```
+
+There is no database. Coaching inputs are passed per request, and both the
+knowledge store and the card snapshot cache live in memory for the life of the
+process.
 
 ## Development Commands
 
@@ -256,6 +370,20 @@ Check config after startup:
 http://localhost:8080/api/investec/config-check
 ```
 
+Run the frontend, from the `lifepilot-frontend` repo:
+
+```powershell
+npm run dev
+```
+
+It serves on `http://localhost:8081` and expects the backend on `8080`. Override
+the API base with `VITE_LIFEPILOT_API_BASE`.
+
+Without Investec credentials the app still starts. Forecast and card
+authorisation catch the failed calls and answer with `fallbackUsed: true` and
+zeroed figures rather than erroring; safe-to-spend, advice, and scenarios throw,
+because they have no fallback path.
+
 ## Design Documents
 
 - `docs/superpowers/specs/2026-05-03-ai-money-coach-advice-design.md`
@@ -264,16 +392,31 @@ http://localhost:8080/api/investec/config-check
 
 ## Product Direction
 
-Recommended next product increments:
+Before 30 September, in bounty-value order:
 
-1. Add survival budget impact calculation.
-2. Add validation for negative bill, savings, and scenario inputs — `LifePilotScenarioRequest` and `AdvancedSafeToSpendRequest` currently carry no constraints.
-3. Add AI explanation support for scenario responses.
-4. Replace query-parameter coaching inputs with a proper request model.
-5. Add transaction categorization and monthly spend summaries, populating `SpendingCategory`.
-6. Add goal and recurring bill models.
-7. Add a persistence layer, per `2026-05-22-lifepilot-v2-mysql-ai-design.md`.
-8. Cache the Investec access token instead of fetching one per outbound call.
+1. Add a demo mode backed by fixture data. Nothing here runs without Investec
+   credentials, so nobody evaluating the submission can see it work.
+   `BalanceForecastService` and `RecurringPaymentDetector` already accept
+   injected transactions and an `asOf` date, so this is cheap.
+2. Render the forecast screen in a browser and check the chart at a 365-day
+   horizon. It has never been looked at.
+3. Simulate the card code in the Investec sandbox.
+4. Rewire scenarios onto `BalanceForecastService`, so a life event redraws the
+   day-by-day curve instead of subtracting a flat monthly figure. Scenarios
+   still go through `MoneyCoachService` and ignore the better engine.
+
+Longer term:
+
+5. Add validation for negative bill, savings, and scenario inputs —
+   `LifePilotScenarioRequest` and `AdvancedSafeToSpendRequest` carry no constraints.
+6. Add AI explanation support for scenario responses.
+7. Replace query-parameter coaching inputs with a proper request model.
+8. Add transaction categorization and monthly spend summaries, populating `SpendingCategory`.
+9. Add goal and recurring bill models.
+10. Add a persistence layer, per `2026-05-22-lifepilot-v2-mysql-ai-design.md`.
+    This would also survive a restart, which the card snapshot cache currently
+    does not.
+11. Cache the Investec access token instead of fetching one per outbound call.
 
 ## Investec Usage Assessment
 
@@ -293,6 +436,9 @@ Key production gaps:
 - No compliance review for financial advice boundaries
 - No license metadata in `pom.xml`
 - Knowledge documents are accepted from any caller with no moderation or ownership model
+- The card guardrail authenticates with a single shared secret, which is
+  proportionate for one user and nothing more. It also caches balances in
+  memory, which a data retention model would have to account for.
 
 ## How Assistants Should Work In This Repo
 
@@ -313,3 +459,18 @@ Default behavior:
 - Prefer clear REST DTOs, service-layer tests, and explicit validation.
 - Keep transaction direction logic in `TransactionAmounts` rather than re-deriving debit/credit rules at a call site.
 - Keep detection and forecasting services free of I/O and clock reads: pass transactions and an `asOf` date in, so the behaviour stays testable.
+- When changing a response DTO the frontend reads, change `lifepilot-frontend`
+  in the same piece of work. Drift between the two is silent: the UI renders
+  blanks rather than failing, which is how five fields went missing unnoticed.
+
+Card guardrail rules, which are safety decisions rather than style:
+
+- Every uncertain path approves. No snapshot, a stale one, a timeout, an HTTP
+  error, an unrecognised decision value: all let the payment through. A
+  guardrail that declines when it is unsure strands someone at a checkout,
+  which is worse than the overdraft it was avoiding.
+- Essential merchant categories are never declined, whatever the forecast says.
+- Monitor mode stays the default. Declining a real transaction is not a
+  behaviour to enable on someone's behalf.
+- Never put work on the `beforeTransaction` path. Two seconds covers the round
+  trip, so that endpoint answers from cache and makes no outbound calls.

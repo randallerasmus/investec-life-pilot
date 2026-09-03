@@ -105,16 +105,17 @@ Not yet implemented on `main`:
 
 ## In Flight On Branches
 
-Work finished but not yet merged, as of 3 September 2026. Everything above
-describes `main`; everything here is on a branch. Merge in this order, because
-the forecast screen reads fields the survival branch adds.
+All merged into `main` on 3 September 2026, in both repositories. The
+descriptions below are kept because they record why each thing is shaped the
+way it is, and what about it is still unverified.
 
-| Branch | Repo | What it adds |
+| Branch | Repo | What it added |
 | --- | --- | --- |
 | `docs/refresh-lifepilot-context` | backend | This file |
 | `feature/scenario-survival-contract` | backend | Survival fields on the scenario response |
 | `feature/programmable-card-guardrail` | backend | Card authorisation guardrail under `card/` |
 | `feature/balance-forecast-screen` | frontend | Forecast screen, contract and port fixes |
+| `feature/demo-account` | backend | The demo account described under Configuration |
 
 ### `feature/scenario-survival-contract`
 
@@ -153,6 +154,21 @@ Never verified inside the Investec sandbox. Hook names, the 2s/15s windows,
 `process.env`, and the authorisation fields were taken from the Investec docs
 and community repos rather than assumed, and the card code avoids optional
 chaining and `AbortController` because that runtime could not be tested against.
+
+### `feature/demo-account`
+
+Adds `DemoProperties` and `DemoAccountData`, intercepted in
+`InvestecAccountService` so every downstream feature works against generated
+history without knowing it exists.
+
+Two bugs were found while tuning it, both worth not reintroducing. Replaying
+from `asOf.minusDays(200)` made the window slide, so adjacent dates contained
+different numbers of paydays and the balance swung by tens of thousands between
+two days. Replaying from one fixed calendar date instead let the small monthly
+surplus compound, so the account grew comfortable over a few years and stopped
+dipping before payday. The window is now a constant number of whole months back
+from the requested date, which has neither problem, and both properties are
+pinned by tests.
 
 ### `feature/balance-forecast-screen` (frontend)
 
@@ -197,7 +213,24 @@ Default OpenAI base URL: `https://api.openai.com/v1`
 
 CORS allows `http://localhost:8081` and `http://127.0.0.1:8081` on `/api/**` for `GET`, `POST`, `OPTIONS`.
 
-Card guardrail environment variables, on `feature/programmable-card-guardrail`:
+### The demo account
+
+`lifepilot.demo.enabled` defaults to true and `lifepilot.demo.account-id`
+defaults to `demo-account`. Requests for that one id are served from generated
+history; every other id goes to Investec exactly as before, so a deployment with
+real credentials is unaffected. The account is also appended to
+`GET /api/investec/accounts`, so it is reachable whether or not credentials work.
+
+The generated profile is deliberately tight: about R39,000 of monthly income
+against R23,976 of detected commitments and roughly R14,400 of everyday
+spending, so the balance peaks on payday and dips to near zero on the 24th. An
+account with a comfortable surplus would demonstrate nothing.
+
+Verified end to end with `INVESTEC_CLIENT_ID`, `INVESTEC_CLIENT_SECRET` and
+`INVESTEC_API_KEY` all blank: accounts, safe-to-spend, advice, scenarios, the
+forecast and the card guardrail all answer.
+
+Card guardrail environment variables:
 
 - `LIFEPILOT_CARD_SHARED_SECRET` — required. The card endpoints return 503 while
   it is blank. They must be reachable from the Investec sandbox and they answer
@@ -379,10 +412,18 @@ npm run dev
 It serves on `http://localhost:8081` and expects the backend on `8080`. Override
 the API base with `VITE_LIFEPILOT_API_BASE`.
 
-Without Investec credentials the app still starts. Forecast and card
+Without Investec credentials, use the demo account. Every endpoint that takes an
+account id works against `demo-account`, so the whole app is demonstrable with
+nothing configured:
+
+```text
+http://localhost:8080/api/lifepilot/accounts/demo-account/forecast?minimumBalanceThreshold=2000
+```
+
+For any other account id without credentials, the forecast and card
 authorisation catch the failed calls and answer with `fallbackUsed: true` and
-zeroed figures rather than erroring; safe-to-spend, advice, and scenarios throw,
-because they have no fallback path.
+zeroed figures, while safe-to-spend, advice and scenarios throw, because they
+have no fallback path.
 
 ## Design Documents
 
@@ -394,16 +435,14 @@ because they have no fallback path.
 
 Before 30 September, in bounty-value order:
 
-1. Add a demo mode backed by fixture data. Nothing here runs without Investec
-   credentials, so nobody evaluating the submission can see it work.
-   `BalanceForecastService` and `RecurringPaymentDetector` already accept
-   injected transactions and an `asOf` date, so this is cheap.
-2. Render the forecast screen in a browser and check the chart at a 365-day
-   horizon. It has never been looked at.
-3. Simulate the card code in the Investec sandbox.
-4. Rewire scenarios onto `BalanceForecastService`, so a life event redraws the
+1. Render the forecast screen in a browser and check the chart at a 365-day
+   horizon. It has never been looked at. Point it at `demo-account`.
+2. Simulate the card code in the Investec sandbox.
+3. Rewire scenarios onto `BalanceForecastService`, so a life event redraws the
    day-by-day curve instead of subtracting a flat monthly figure. Scenarios
    still go through `MoneyCoachService` and ignore the better engine.
+4. Give the frontend an obvious way into the demo account, so an evaluator does
+   not have to know the id. The backend lists it; the UI still needs it typed in.
 
 Longer term:
 

@@ -48,6 +48,25 @@ next detected payday, less an emergency buffer.
      https://your-lifepilot-host/api/lifepilot/cards/accounts/YOUR_ACCOUNT_ID/snapshot
    ```
 
+## Trying it without a card
+
+The guardrail can be exercised end to end against the demo account, with no
+Investec credentials and no card:
+
+```bash
+curl -X POST -H "X-LifePilot-Card-Key: $LIFEPILOT_CARD_SHARED_SECRET" \
+  http://localhost:8080/api/lifepilot/cards/accounts/demo-account/snapshot
+
+curl -X POST -H "Content-Type: application/json" \
+  -H "X-LifePilot-Card-Key: $LIFEPILOT_CARD_SHARED_SECRET" \
+  -d '{"accountId":"demo-account","centsAmount":1200000,"currencyCode":"ZAR","merchantName":"Incredible Connection","merchantCategoryCode":"5732"}' \
+  http://localhost:8080/api/lifepilot/cards/authorization
+```
+
+The demo account holds about R14,800 with roughly R4,700 already committed
+before payday, so R12,000 comes back as `EXCEEDS_HEADROOM` — approved anyway,
+because monitor mode is on.
+
 ## It will not decline anything yet
 
 `lifepilot.card.monitor-only` defaults to `true`. The guardrail reaches its

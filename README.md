@@ -59,6 +59,14 @@ spoken for:
 *Figures are real output from the demo account on 30 September 2026. The demo
 history is generated relative to today, so your numbers will differ.*
 
+<p align="center">
+  <img src="docs/assets/simulator.png" alt="The simulator testing a R2,500 a month second car on demo-comfortable: the balance with the decision (solid) against without it (dashed), marked TIGHT with a lowest point of R3,475" width="100%" />
+</p>
+
+<p align="center">
+  <img src="docs/assets/forecast.png" alt="The one-year forecast for demo-account: the balance climbs each payday and dips to zero before the next, first running out on 24 October 2026" width="100%" />
+</p>
+
 ## What It Does
 
 | Bounty ask | LifePilot | Where |

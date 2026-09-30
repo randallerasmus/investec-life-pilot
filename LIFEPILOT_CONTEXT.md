@@ -94,7 +94,7 @@ Not yet implemented on `main`:
 - Vector embeddings for retrieval; `KnowledgeRagService` scores by keyword overlap only
 - Authentication/authorization for this service's own endpoints
 - Consent management or multi-user banking access controls
-- Scheduled refreshes or background jobs
+- Scheduled jobs beyond the card snapshot refresh (`SpendingSnapshotService.refreshKnownAccounts`, every 240s)
 - Audit logging
 - Observability
 - Production-grade error handling

@@ -26,6 +26,7 @@ So the card never computes. It asks a service that already did:
 | `beforeTransaction` | 2s | One POST. The service answers from a cached snapshot, no outbound calls. |
 | `afterTransaction` | 15s | Rebuilds the snapshot, so the next swipe sees the spend that just happened. |
 | `afterDecline` | 15s | Same rebuild — a decline still changes what is known. |
+| Backend schedule | every 240s | Rebuilds every account the card has used, so a swipe hours after the last one still finds a live snapshot. |
 
 The snapshot reduces a whole forecast to the one number a swipe needs:
 **discretionary headroom** — balance, less the recurring debits due before the
@@ -40,7 +41,8 @@ next detected payday, less an emergency buffer.
    answering anyone.
 3. Copy `env.example.json` into the card editor's `env.json` and fill it in.
 4. Paste `main.js` into the card editor.
-5. Prime the cache once, so the first swipe has something to read:
+5. Prime the cache once, so the first swipe has something to read. From then on
+   the backend keeps it fresh on its own schedule:
 
    ```bash
    curl -X POST \

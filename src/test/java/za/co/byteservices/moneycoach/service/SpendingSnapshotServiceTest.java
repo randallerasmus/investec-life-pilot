@@ -19,6 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class SpendingSnapshotServiceTest {
@@ -96,6 +97,40 @@ class SpendingSnapshotServiceTest {
     }
 
     @Test
+    void keepsAnAccountWarmLongAfterItsLastSwipe() {
+        whenForecastHas(new BigDecimal("13200.00"), List.of(), List.of());
+        properties.setSnapshotTtlSeconds(900);
+
+        service.refresh("acc-123", NOW);
+        service.refreshKnownAccounts(NOW.plusSeconds(800));
+
+        // Without the background rebuild this swipe, 1000s after the last one,
+        // would find nothing and the guardrail would stand aside.
+        assertThat(service.current("acc-123", NOW.plusSeconds(1000))).isPresent();
+    }
+
+    @Test
+    void neverReplacesAGoodSnapshotWithOneBuiltWhileInvestecWasDown() {
+        whenForecastHas(new BigDecimal("13200.00"), List.of(), List.of());
+        service.refresh("acc-123", NOW);
+
+        // A fallback build reports a zero balance, which would decline everything.
+        whenForecastHas(BigDecimal.ZERO, List.of(), List.of(), true);
+        service.refreshKnownAccounts(NOW.plusSeconds(240));
+
+        SpendingSnapshot kept = service.current("acc-123", NOW.plusSeconds(300)).orElseThrow();
+        assertThat(kept.getGeneratedAt()).isEqualTo(NOW);
+        assertThat(kept.getDiscretionaryHeadroom()).isEqualByComparingTo("12700.00");
+    }
+
+    @Test
+    void refreshesNothingUntilTheCardHasUsedAnAccount() {
+        service.refreshKnownAccounts(NOW);
+
+        verifyNoInteractions(forecastService);
+    }
+
+    @Test
     void returnsEmptyForAnAccountThatWasNeverRefreshed() {
         assertThat(service.current("never-seen", NOW)).isEmpty();
     }
@@ -118,6 +153,13 @@ class SpendingSnapshotServiceTest {
     private void whenForecastHas(BigDecimal openingBalance,
                                  List<RecurringPayment> expenses,
                                  List<RecurringPayment> income) {
+        whenForecastHas(openingBalance, expenses, income, false);
+    }
+
+    private void whenForecastHas(BigDecimal openingBalance,
+                                 List<RecurringPayment> expenses,
+                                 List<RecurringPayment> income,
+                                 boolean fallbackUsed) {
         when(forecastService.forecast(eq("acc-123"), any(BalanceForecastRequest.class), any(LocalDate.class)))
                 .thenReturn(new BalanceForecastResponse(
                         "acc-123",
@@ -145,7 +187,7 @@ class SpendingSnapshotServiceTest {
                         List.of(),
                         List.of(),
                         "summary",
-                        false
+                        fallbackUsed
                 ));
     }
 }

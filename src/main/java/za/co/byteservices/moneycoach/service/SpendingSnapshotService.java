@@ -1,5 +1,6 @@
 package za.co.byteservices.moneycoach.service;
 
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import za.co.byteservices.moneycoach.config.CardGuardrailProperties;
 import za.co.byteservices.moneycoach.dto.BalanceForecastRequest;
@@ -17,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Keeps a current {@link SpendingSnapshot} per account.
@@ -29,6 +31,11 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>A miss returns empty rather than building on demand. Answering late is
  * worse than not answering: the card runtime would time out and the guardrail
  * would have made the decision it was trying to avoid.
+ *
+ * <p>Refreshing only after a swipe is not enough on its own: the next swipe is
+ * usually hours later, long after the snapshot has expired, so the guardrail
+ * would stand aside on almost every purchase. Every account seen once is
+ * therefore rebuilt on a schedule inside its time to live.
  */
 @Service
 public class SpendingSnapshotService {
@@ -66,6 +73,43 @@ public class SpendingSnapshotService {
 
     /** Builds a snapshot from a fresh forecast and caches it. Slow by nature. */
     public SpendingSnapshot refresh(String accountId, Instant now) {
+        SpendingSnapshot snapshot = build(accountId, now);
+        snapshots.put(accountId, snapshot);
+        return snapshot;
+    }
+
+    @Scheduled(
+            initialDelayString = "${lifepilot.card.snapshot-refresh-seconds:240}",
+            fixedDelayString = "${lifepilot.card.snapshot-refresh-seconds:240}",
+            timeUnit = TimeUnit.SECONDS)
+    public void refreshKnownAccounts() {
+        refreshKnownAccounts(Instant.now());
+    }
+
+    /**
+     * Rebuilds every cached account so a swipe finds a live snapshot however long
+     * it has been since the last one.
+     *
+     * <p>A build that fell back because Investec was unreachable reports an opening
+     * balance of zero, and zero headroom declines everything. It never replaces a
+     * good snapshot: the good one is kept and allowed to age out, after which the
+     * guardrail stands aside instead of declining on data it does not have.
+     */
+    public void refreshKnownAccounts(Instant now) {
+        for (String accountId : List.copyOf(snapshots.keySet())) {
+            try {
+                SpendingSnapshot rebuilt = build(accountId, now);
+                SpendingSnapshot previous = snapshots.get(accountId);
+                if (!rebuilt.isFallbackUsed() || previous == null || previous.isFallbackUsed()) {
+                    snapshots.put(accountId, rebuilt);
+                }
+            } catch (RuntimeException ex) {
+                // One account failing must not stop the others being kept warm.
+            }
+        }
+    }
+
+    private SpendingSnapshot build(String accountId, Instant now) {
         LocalDate today = LocalDate.ofInstant(now, java.time.ZoneOffset.UTC);
 
         BalanceForecastResponse forecast = balanceForecastService.forecast(
@@ -96,7 +140,7 @@ public class SpendingSnapshotService {
                 ? null
                 : forecast.getRisks().get(0).getStartDate();
 
-        SpendingSnapshot snapshot = new SpendingSnapshot(
+        return new SpendingSnapshot(
                 accountId,
                 now,
                 money(forecast.getOpeningBalance()),
@@ -108,9 +152,6 @@ public class SpendingSnapshotService {
                 nextRiskDate,
                 forecast.isFallbackUsed()
         );
-
-        snapshots.put(accountId, snapshot);
-        return snapshot;
     }
 
     private BigDecimal totalDueBy(List<RecurringPayment> payments, LocalDate cutoff) {

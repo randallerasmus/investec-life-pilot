@@ -31,6 +31,34 @@ forecasts future balances, spots recurring payments, highlights upcoming cashflo
 risks, or answers "can I afford this?". LifePilot does all four, on the Investec
 Account Information API and a Programmable Card.
 
+## What Was Built For This Bounty
+
+LifePilot started in May 2026 as a safe-to-spend calculator and life-event
+simulator. Everything that looks forward, in the brief's sense of "what happens
+next", was built during the build window (27 August to 30 September 2026). Git
+history in both repositories shows the split.
+
+**Before the bounty (May to June 2026)**
+
+- Investec OAuth2 authentication and the accounts, balance and transactions calls
+- A safe-to-spend calculation from the balance minus bills the user typed in
+- A first life-event simulator that subtracted a flat monthly cost
+- The optional AI coach, knowledge search, guardrails and evaluation scenarios
+- The React frontend's scenario form
+
+**Built for the bounty (1 to 30 September 2026)**
+
+| What | Backend commits | Frontend commits |
+| --- | --- | --- |
+| Recurring payment and income detection, with cadence, amount stability and confidence | `f09d726`, `c157fbf` | |
+| Day-by-day balance forecast with dated cashflow-risk windows, and its endpoint | `0d7b0bc`, `32655ae` | |
+| Forecast screen: balance curve, shaded risk windows, detected payments and income | | `15e6d86`, `4e32102` |
+| Programmable Card guardrail: checks each swipe against money free before payday | `3de2bd9` | |
+| Card snapshot kept fresh between swipes, and never replaced by a failed rebuild | `6c59e05` | |
+| Demo accounts, so the app runs without Investec credentials | `05eb414`, `8b29a63` | `c3dd3d2` |
+| Simulator rebuilt on the forecast: the decision's costs on their dates, verdict read from the lowest point | `48151b7`, `2e2ddf9`, `5c886f8` | `0994331` |
+| This README, screenshots, the forecast explanation, the knowledge file and the MIT licence | `15ed088`, `1aeeca7`, `0129c88` | `8899139` |
+
 ## Future You In One Minute
 
 The demo account has **R35,196** available today. The card thinks you can spend all of it.

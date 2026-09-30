@@ -23,6 +23,13 @@ public class DemoProperties {
     /** Requests for this account id are served from generated data. */
     private String accountId = "demo-account";
 
+    /**
+     * A second demo account with room to spare. The first is tight by design, so
+     * every decision tested on it fails; this one lets a decision pass or come
+     * close, which is the rest of what the simulator can say.
+     */
+    private String comfortableAccountId = "demo-comfortable";
+
     public boolean isEnabled() {
         return enabled;
     }
@@ -39,8 +46,22 @@ public class DemoProperties {
         this.accountId = accountId;
     }
 
+    public String getComfortableAccountId() {
+        return comfortableAccountId;
+    }
+
+    public void setComfortableAccountId(String comfortableAccountId) {
+        this.comfortableAccountId = comfortableAccountId;
+    }
+
     /** True when this request should be served from generated data. */
     public boolean handles(String requestedAccountId) {
-        return enabled && accountId != null && accountId.equals(requestedAccountId);
+        return enabled && requestedAccountId != null
+                && (requestedAccountId.equals(accountId) || requestedAccountId.equals(comfortableAccountId));
+    }
+
+    /** True when the request is for the account with room to spare. */
+    public boolean isComfortable(String requestedAccountId) {
+        return requestedAccountId != null && requestedAccountId.equals(comfortableAccountId);
     }
 }

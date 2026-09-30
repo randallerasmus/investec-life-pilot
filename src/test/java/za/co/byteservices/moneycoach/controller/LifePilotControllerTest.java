@@ -29,19 +29,12 @@ class LifePilotControllerTest {
     void simulatesLifePilotScenario() {
         LifePilotScenarioRequest request = new LifePilotScenarioRequest(
                 "acc-123",
-                BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                new BigDecimal("500.00"),
                 LifePilotScenarioType.PRIVATE_SCHOOL,
                 "Send child to private school",
                 new BigDecimal("6500.00"),
                 new BigDecimal("15000.00"),
-                18
+                18,
+                null
         );
 
         LifePilotScenarioResponse expected = new LifePilotScenarioResponse(
@@ -60,7 +53,13 @@ class LifePilotControllerTest {
                 new BigDecimal("0.00"),
                 new BigDecimal("14935.89"),
                 null,
-                "This life event would reduce your monthly safe-to-spend by ZAR 6500.00.",
+                LocalDate.of(2026, 10, 1),
+                LocalDate.of(2026, 10, 24),
+                LocalDate.of(2026, 10, 21),
+                false,
+                forecastResponse(),
+                forecastResponse(),
+                "Over the next 365 days this decision moves the lowest projected balance.",
                 "On these numbers this decision does not fit.",
                 List.of("Delay this scenario until your current safe-to-spend is positive."),
                 "Educational planning guidance only. This is not financial advice."

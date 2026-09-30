@@ -1,93 +1,65 @@
 package za.co.byteservices.moneycoach.dto;
 
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import za.co.byteservices.moneycoach.model.LifePilotScenarioType;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
+/**
+ * A life decision to test against the account's forecast.
+ *
+ * <p>Existing bills are not asked for. The forecast finds them in the
+ * transaction history, and asking again would count them twice.
+ */
 public class LifePilotScenarioRequest {
 
+    @NotBlank
     private String accountId;
-    private BigDecimal bondOrRent;
-    private BigDecimal schoolFees;
-    private BigDecimal insurance;
-    private BigDecimal groceries;
-    private BigDecimal fuel;
-    private BigDecimal subscriptions;
-    private BigDecimal otherBills;
-    private BigDecimal goalSavingAmount;
+
     private LifePilotScenarioType scenarioType;
+
     private String scenarioName;
+
+    /** New monthly cost, or monthly income given up for a decision like unpaid leave. */
+    @DecimalMin(value = "0.0")
     private BigDecimal monthlyCost;
+
+    @DecimalMin(value = "0.0")
     private BigDecimal onceOffCost;
+
+    /** How many months the monthly cost runs for. Absent means for the whole forecast. */
+    @Min(1)
+    @Max(600)
     private Integer durationMonths;
+
+    /** When the decision takes effect. Defaults to the first of next month. */
+    private LocalDate startDate;
 
     public LifePilotScenarioRequest() {
     }
 
     public LifePilotScenarioRequest(String accountId,
-                                    BigDecimal bondOrRent,
-                                    BigDecimal schoolFees,
-                                    BigDecimal insurance,
-                                    BigDecimal groceries,
-                                    BigDecimal fuel,
-                                    BigDecimal subscriptions,
-                                    BigDecimal otherBills,
-                                    BigDecimal goalSavingAmount,
                                     LifePilotScenarioType scenarioType,
                                     String scenarioName,
                                     BigDecimal monthlyCost,
                                     BigDecimal onceOffCost,
-                                    Integer durationMonths) {
+                                    Integer durationMonths,
+                                    LocalDate startDate) {
         this.accountId = accountId;
-        this.bondOrRent = bondOrRent;
-        this.schoolFees = schoolFees;
-        this.insurance = insurance;
-        this.groceries = groceries;
-        this.fuel = fuel;
-        this.subscriptions = subscriptions;
-        this.otherBills = otherBills;
-        this.goalSavingAmount = goalSavingAmount;
         this.scenarioType = scenarioType;
         this.scenarioName = scenarioName;
         this.monthlyCost = monthlyCost;
         this.onceOffCost = onceOffCost;
         this.durationMonths = durationMonths;
+        this.startDate = startDate;
     }
 
     public String getAccountId() {
         return accountId;
-    }
-
-    public BigDecimal getBondOrRent() {
-        return bondOrRent;
-    }
-
-    public BigDecimal getSchoolFees() {
-        return schoolFees;
-    }
-
-    public BigDecimal getInsurance() {
-        return insurance;
-    }
-
-    public BigDecimal getGroceries() {
-        return groceries;
-    }
-
-    public BigDecimal getFuel() {
-        return fuel;
-    }
-
-    public BigDecimal getSubscriptions() {
-        return subscriptions;
-    }
-
-    public BigDecimal getOtherBills() {
-        return otherBills;
-    }
-
-    public BigDecimal getGoalSavingAmount() {
-        return goalSavingAmount;
     }
 
     public LifePilotScenarioType getScenarioType() {
@@ -108,5 +80,9 @@ public class LifePilotScenarioRequest {
 
     public Integer getDurationMonths() {
         return durationMonths;
+    }
+
+    public LocalDate getStartDate() {
+        return startDate;
     }
 }

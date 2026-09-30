@@ -5,15 +5,28 @@ import za.co.byteservices.moneycoach.model.MoneyCoachRiskLevel;
 import za.co.byteservices.moneycoach.model.SurvivalStatus;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
+/**
+ * A life decision measured against the account's forecast.
+ *
+ * <p>Carries both projections, without and with the decision, so a client can
+ * draw the two curves the verdict was read from.
+ */
 public class LifePilotScenarioResponse {
-
     private final String accountId;
     private final LifePilotScenarioType scenarioType;
     private final String scenarioName;
     private final BigDecimal availableBalance;
+
+    /**
+     * Lowest projected balance without the decision: what could be spent today
+     * without the account ever going below zero over the forecast.
+     */
     private final BigDecimal currentSafeToSpend;
+
+    /** The same figure with the decision in place. */
     private final BigDecimal projectedSafeToSpend;
     private final BigDecimal monthlyImpact;
     private final BigDecimal onceOffImpact;
@@ -21,9 +34,31 @@ public class LifePilotScenarioResponse {
     private final String currency;
     private final MoneyCoachRiskLevel riskLevel;
     private final SurvivalStatus survivalStatus;
-    private final BigDecimal monthlyBufferAfterScenario;
-    private final BigDecimal monthlyShortfall;
+
+    /**
+     * How far above zero the balance stays at its lowest point with the decision.
+     * Exactly one of this and {@link #shortfallAtLowestPoint} carries a figure.
+     */
+    private final BigDecimal bufferAtLowestPoint;
+
+    /** How far below zero the balance goes at its lowest point with the decision. */
+    private final BigDecimal shortfallAtLowestPoint;
+
+    /** Null when there is no positive safe-to-spend to measure the drop against. */
     private final BigDecimal safeToSpendDropPercent;
+    private final LocalDate startDate;
+    private final LocalDate lowestBalanceDate;
+
+    /** First day the balance goes below zero with the decision, or null if it never does. */
+    private final LocalDate firstShortfallDate;
+
+    /**
+     * True when the account goes below zero even without the decision, so the
+     * decision deepens a shortfall rather than causing one.
+     */
+    private final boolean alreadyShortWithoutScenario;
+    private final BalanceForecastResponse baselineForecast;
+    private final BalanceForecastResponse scenarioForecast;
     private final String summary;
     private final String survivalMessage;
     private final List<String> recommendations;
@@ -41,9 +76,15 @@ public class LifePilotScenarioResponse {
                                      String currency,
                                      MoneyCoachRiskLevel riskLevel,
                                      SurvivalStatus survivalStatus,
-                                     BigDecimal monthlyBufferAfterScenario,
-                                     BigDecimal monthlyShortfall,
+                                     BigDecimal bufferAtLowestPoint,
+                                     BigDecimal shortfallAtLowestPoint,
                                      BigDecimal safeToSpendDropPercent,
+                                     LocalDate startDate,
+                                     LocalDate lowestBalanceDate,
+                                     LocalDate firstShortfallDate,
+                                     boolean alreadyShortWithoutScenario,
+                                     BalanceForecastResponse baselineForecast,
+                                     BalanceForecastResponse scenarioForecast,
                                      String summary,
                                      String survivalMessage,
                                      List<String> recommendations,
@@ -60,9 +101,15 @@ public class LifePilotScenarioResponse {
         this.currency = currency;
         this.riskLevel = riskLevel;
         this.survivalStatus = survivalStatus;
-        this.monthlyBufferAfterScenario = monthlyBufferAfterScenario;
-        this.monthlyShortfall = monthlyShortfall;
+        this.bufferAtLowestPoint = bufferAtLowestPoint;
+        this.shortfallAtLowestPoint = shortfallAtLowestPoint;
         this.safeToSpendDropPercent = safeToSpendDropPercent;
+        this.startDate = startDate;
+        this.lowestBalanceDate = lowestBalanceDate;
+        this.firstShortfallDate = firstShortfallDate;
+        this.alreadyShortWithoutScenario = alreadyShortWithoutScenario;
+        this.baselineForecast = baselineForecast;
+        this.scenarioForecast = scenarioForecast;
         this.summary = summary;
         this.survivalMessage = survivalMessage;
         this.recommendations = recommendations;
@@ -117,22 +164,40 @@ public class LifePilotScenarioResponse {
         return survivalStatus;
     }
 
-    /** Monthly room left over once the scenario is paid for, or zero when it does not fit. */
-    public BigDecimal getMonthlyBufferAfterScenario() {
-        return monthlyBufferAfterScenario;
+    public BigDecimal getBufferAtLowestPoint() {
+        return bufferAtLowestPoint;
     }
 
-    /** Monthly gap the scenario opens up, or zero when it fits. */
-    public BigDecimal getMonthlyShortfall() {
-        return monthlyShortfall;
+    public BigDecimal getShortfallAtLowestPoint() {
+        return shortfallAtLowestPoint;
     }
 
-    /**
-     * How much of the current safe-to-spend the scenario consumes, as a percentage.
-     * Null when there is no positive safe-to-spend to measure against.
-     */
     public BigDecimal getSafeToSpendDropPercent() {
         return safeToSpendDropPercent;
+    }
+
+    public LocalDate getStartDate() {
+        return startDate;
+    }
+
+    public LocalDate getLowestBalanceDate() {
+        return lowestBalanceDate;
+    }
+
+    public LocalDate getFirstShortfallDate() {
+        return firstShortfallDate;
+    }
+
+    public boolean isAlreadyShortWithoutScenario() {
+        return alreadyShortWithoutScenario;
+    }
+
+    public BalanceForecastResponse getBaselineForecast() {
+        return baselineForecast;
+    }
+
+    public BalanceForecastResponse getScenarioForecast() {
+        return scenarioForecast;
     }
 
     public String getSummary() {

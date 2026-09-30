@@ -10,7 +10,7 @@ The current implementation connects to the Investec Programmable Banking / Accou
 - Account listing, balance, and transaction retrieval
 - A basic safe-to-spend calculation
 - Hybrid Money Coach advice, grounded in deterministic safe-to-spend insights
-- LifePilot scenario simulation for life-event monthly impact
+- LifePilot scenario simulation, run as a second projection of the balance forecast
 - A day-by-day balance forecast with dated cashflow risks, driven by recurring payment detection
 - An advanced safe-to-spend engine, a retrieval-grounded AI coach, responsible-AI guardrails, and evaluation criteria
 
@@ -65,7 +65,7 @@ Money Coach module
 
 LifePilot simulation and forecasting
 
-- Scenario simulation: `LifePilotScenarioService`, `LifePilotScenarioType`
+- Scenario simulation on the forecast: `LifePilotScenarioService`, `LifePilotScenarioType`, with `BalanceForecastService.compare` projecting the account with and without a `PlannedCashflow` list from one Investec read (`ForecastComparison`)
 - Recurring payment detection over transaction history: `RecurringPaymentDetector`, `RecurringCadence`, `RecurringPayment`
 - Day-by-day balance forecasting with dated cashflow risk windows: `BalanceForecastService`, `ForecastDay`, `CashflowRisk`, `BalanceForecastResponse`
 - Shared debit/credit direction rules: `TransactionAmounts` (package-private helper), `TransactionDates`
@@ -435,19 +435,20 @@ have no fallback path.
 
 Before 30 September, in bounty-value order:
 
-1. Render the forecast screen in a browser and check the chart at a 365-day
-   horizon. It has never been looked at. Point it at `demo-account`.
-2. Simulate the card code in the Investec sandbox.
-3. Rewire scenarios onto `BalanceForecastService`, so a life event redraws the
-   day-by-day curve instead of subtracting a flat monthly figure. Scenarios
-   still go through `MoneyCoachService` and ignore the better engine.
-4. Give the frontend an obvious way into the demo account, so an evaluator does
-   not have to know the id. The backend lists it; the UI still needs it typed in.
+1. Simulate the card code in the Investec sandbox.
+
+Done on 30 September 2026: the forecast and simulator screens were rendered
+headless against `demo-account` at desktop and phone width (tick collisions and a
+clipped low-point label were fixed); scenarios now run on the forecast; both
+frontend screens open on `demo-account`.
 
 Longer term:
 
-5. Add validation for negative bill, savings, and scenario inputs —
-   `LifePilotScenarioRequest` and `AdvancedSafeToSpendRequest` carry no constraints.
+5. Add validation for `AdvancedSafeToSpendRequest`. `LifePilotScenarioRequest`
+   now rejects negative costs and non-positive durations.
+   Also give `demo-account` some months with room to spare, so the simulator can
+   show `AFFORDABLE` and `TIGHT` as well as `UNAFFORDABLE`.
+   The frontend only goes dark through a `.dark` class; it ignores the OS setting.
 6. Add AI explanation support for scenario responses.
 7. Replace query-parameter coaching inputs with a proper request model.
 8. Add transaction categorization and monthly spend summaries, populating `SpendingCategory`.

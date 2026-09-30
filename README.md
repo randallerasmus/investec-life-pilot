@@ -129,6 +129,17 @@ On the demo account this comes back `UNAFFORDABLE`, and it says why: the account
 is already projected below zero on 24 October without the decision, and the
 decision deepens the lowest point to about -R91,500.
 
+A second demo account, `demo-comfortable`, has a small monthly surplus, so it
+shows the other verdicts. Over 12 months, R2,000 a month comes back `AFFORDABLE`,
+R2,500 comes back `TIGHT`, and R3,000 or more comes back `UNAFFORDABLE`, with the
+day it would run short:
+
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  -d '{"accountId":"demo-comfortable","scenarioName":"Second car","monthlyCost":2500,"durationMonths":12}' \
+  http://localhost:8080/api/lifepilot/scenarios
+```
+
 **5. See it visually.** Run the
 [`lifepilot-frontend`](https://github.com/randallerasmus/lifepilot-frontend) and open
 `http://localhost:8081`. Both screens open on `demo-account`. The simulator draws
@@ -266,7 +277,7 @@ GET /api/investec/accounts/{accountId}/transactions?fromDate=YYYY-MM-DD&toDate=Y
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `INVESTEC_CLIENT_ID`, `INVESTEC_CLIENT_SECRET`, `INVESTEC_API_KEY` | blank | Live Investec access. Not needed for `demo-account`. |
-| `LIFEPILOT_DEMO_ENABLED` | `true` | Serves generated history for `demo-account`. Any other account ID still goes to Investec. |
+| `LIFEPILOT_DEMO_ENABLED` | `true` | Serves generated history for `demo-account` (tight before every payday) and `demo-comfortable` (small monthly surplus). Any other account ID still goes to Investec. |
 | `LIFEPILOT_CARD_SHARED_SECRET` | blank | Required for the card endpoints. While it is blank they return `503`, because they face the internet and return balances. |
 | `LIFEPILOT_CARD_MONITOR_ONLY` | `true` | Records the verdict without declining. |
 | `LIFEPILOT_CARD_EMERGENCY_BUFFER` | `500.00` | Held back from headroom. |
@@ -278,10 +289,6 @@ GET /api/investec/accounts/{accountId}/transactions?fromDate=YYYY-MM-DD&toDate=Y
 
 These gaps are listed here on purpose, so an evaluator does not have to find them.
 
-- **The demo account is always short before payday.** It was tuned to show the
-  forecast's risk windows, so every scenario on it comes back `UNAFFORDABLE`. The
-  message explains that the account was already short, but a demo account with
-  room to spare would show the other two verdicts.
 - **The card code has not been run inside the Investec card sandbox.** The hook
   names, the time windows and the authorisation fields come from the Investec docs
   and community repos. The backend side is covered by tests.

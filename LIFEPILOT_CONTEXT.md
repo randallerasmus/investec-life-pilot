@@ -446,8 +446,8 @@ Longer term:
 
 5. Add validation for `AdvancedSafeToSpendRequest`. `LifePilotScenarioRequest`
    now rejects negative costs and non-positive durations.
-   Also give `demo-account` some months with room to spare, so the simulator can
-   show `AFFORDABLE` and `TIGHT` as well as `UNAFFORDABLE`.
+   (`demo-comfortable` now shows `AFFORDABLE` at R2,000/month, `TIGHT` at
+   R2,500 and `UNAFFORDABLE` from R3,000, over 12 months.)
    The frontend only goes dark through a `.dark` class; it ignores the OS setting.
 6. Add AI explanation support for scenario responses.
 7. Replace query-parameter coaching inputs with a proper request model.

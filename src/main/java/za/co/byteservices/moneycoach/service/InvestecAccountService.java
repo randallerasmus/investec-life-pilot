@@ -52,7 +52,7 @@ public class InvestecAccountService {
 
     public InvestecBalanceResponse getBalance(String accountId) {
         if (demoProperties.handles(accountId)) {
-            return demoAccountData.balance(LocalDate.now());
+            return demoAccountData.balance(accountId, LocalDate.now());
         }
 
         return apiClient.getBalance(accessToken(), accountId);
@@ -66,7 +66,7 @@ public class InvestecAccountService {
         LocalDate resolvedFromDate = fromDate != null ? fromDate : resolvedToDate.minusDays(30);
 
         if (demoProperties.handles(accountId)) {
-            return demoAccountData.transactions(resolvedFromDate, resolvedToDate);
+            return demoAccountData.transactions(accountId, resolvedFromDate, resolvedToDate);
         }
 
         return apiClient.getTransactions(

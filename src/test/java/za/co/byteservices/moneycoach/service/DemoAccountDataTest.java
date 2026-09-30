@@ -130,10 +130,20 @@ class DemoAccountDataTest {
     }
 
     @Test
-    void listsTheDemoAccount() {
+    void listsBothDemoAccounts() {
         assertThat(demoData.accounts().getData().getAccounts())
-                .singleElement()
-                .satisfies(account -> assertThat(account.getAccountId()).isEqualTo("demo-account"));
+                .extracting(account -> account.getAccountId())
+                .containsExactly("demo-account", "demo-comfortable");
+    }
+
+    @Test
+    void keepsTheComfortableAccountAboveZeroBeforeEveryPayday() {
+        for (int monthsBack = 0; monthsBack < 6; monthsBack++) {
+            LocalDate dayBeforePayday = TODAY.withDayOfMonth(24).minusMonths(monthsBack);
+            BigDecimal balance = demoData.balance("demo-comfortable", dayBeforePayday).getData().getAvailableBalance();
+            // The point of this account is that its trough has room in it.
+            assertThat(balance).isGreaterThan(new BigDecimal("5000.00"));
+        }
     }
 
     private BigDecimal troughOfMonth(LocalDate firstOfMonth) {

@@ -31,7 +31,7 @@ public class LifePilotController {
     }
 
     @PostMapping("/api/lifepilot/scenarios")
-    public LifePilotScenarioResponse simulateScenario(@RequestBody LifePilotScenarioRequest request) {
+    public LifePilotScenarioResponse simulateScenario(@Valid @RequestBody LifePilotScenarioRequest request) {
         return scenarioService.simulate(request);
     }
 

@@ -4,9 +4,11 @@ import org.springframework.stereotype.Service;
 import za.co.byteservices.moneycoach.dto.BalanceForecastRequest;
 import za.co.byteservices.moneycoach.dto.BalanceForecastResponse;
 import za.co.byteservices.moneycoach.dto.CashflowRisk;
+import za.co.byteservices.moneycoach.dto.ForecastComparison;
 import za.co.byteservices.moneycoach.dto.ForecastDay;
 import za.co.byteservices.moneycoach.dto.InvestecBalanceResponse;
 import za.co.byteservices.moneycoach.dto.InvestecTransactionResponse;
+import za.co.byteservices.moneycoach.dto.PlannedCashflow;
 import za.co.byteservices.moneycoach.dto.RecurringPayment;
 import za.co.byteservices.moneycoach.model.MoneyCoachRiskLevel;
 import za.co.byteservices.moneycoach.model.RecurringCadence;
@@ -47,6 +49,8 @@ public class BalanceForecastService {
 
     private static final BigDecimal DAYS_PER_MONTH = new BigDecimal("30");
 
+    private static final String DEFAULT_CURRENCY = "ZAR";
+
     private final InvestecAccountService investecAccountService;
     private final RecurringPaymentDetector recurringPaymentDetector;
 
@@ -62,19 +66,39 @@ public class BalanceForecastService {
 
     public BalanceForecastResponse forecast(String accountId, BalanceForecastRequest request, LocalDate asOf) {
         LocalDate today = asOf != null ? asOf : LocalDate.now();
-        int horizonDays = horizonDays(request);
-        BigDecimal threshold = money(request != null ? request.getMinimumBalanceThreshold() : null);
-        boolean includeDiscretionary = request == null
-                || request.getIncludeDiscretionarySpend() == null
-                || request.getIncludeDiscretionarySpend();
+        return project(accountId, request, today, load(accountId, today), List.of());
+    }
 
+    /**
+     * Projects the account as it stands and again with {@code plan} added, from a
+     * single read of its balance and history. Reading once keeps the two curves
+     * comparable and halves the calls to Investec.
+     */
+    public ForecastComparison compare(String accountId,
+                                      BalanceForecastRequest request,
+                                      LocalDate asOf,
+                                      List<PlannedCashflow> plan) {
+        LocalDate today = asOf != null ? asOf : LocalDate.now();
+        AccountData data = load(accountId, today);
+        return new ForecastComparison(
+                project(accountId, request, today, data, List.of()),
+                project(accountId, request, today, data, plan != null ? plan : List.of()),
+                data.currency
+        );
+    }
+
+    private AccountData load(String accountId, LocalDate today) {
         BigDecimal openingBalance = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        String currency = DEFAULT_CURRENCY;
         boolean fallbackUsed = false;
 
         try {
             InvestecBalanceResponse balanceResponse = investecAccountService.getBalance(accountId);
             if (balanceResponse != null && balanceResponse.getData() != null) {
                 openingBalance = money(balanceResponse.getData().getAvailableBalance());
+                if (balanceResponse.getData().getCurrency() != null) {
+                    currency = balanceResponse.getData().getCurrency();
+                }
             }
         } catch (RuntimeException ex) {
             fallbackUsed = true;
@@ -95,6 +119,24 @@ public class BalanceForecastService {
         } catch (RuntimeException ex) {
             fallbackUsed = true;
         }
+
+        return new AccountData(openingBalance, currency, history, fallbackUsed);
+    }
+
+    private BalanceForecastResponse project(String accountId,
+                                            BalanceForecastRequest request,
+                                            LocalDate today,
+                                            AccountData data,
+                                            List<PlannedCashflow> plan) {
+        int horizonDays = horizonDays(request);
+        BigDecimal threshold = money(request != null ? request.getMinimumBalanceThreshold() : null);
+        boolean includeDiscretionary = request == null
+                || request.getIncludeDiscretionarySpend() == null
+                || request.getIncludeDiscretionarySpend();
+
+        BigDecimal openingBalance = data.openingBalance;
+        boolean fallbackUsed = data.fallbackUsed;
+        List<InvestecTransactionResponse.Transaction> history = data.history;
 
         List<RecurringPayment> recurringExpenses = recurringPaymentDetector.detect(history, today);
         List<RecurringPayment> recurringIncome = recurringPaymentDetector.detectIncome(history, today);
@@ -124,6 +166,11 @@ public class BalanceForecastService {
             for (RecurringPayment income : recurringIncome) {
                 schedule(calendar, income, today, horizonEnd, true);
             }
+        }
+
+        for (PlannedCashflow planned : plan) {
+            schedulePlanned(calendar, planned, today, horizonEnd);
+            assumptions.add(plannedAssumption(planned));
         }
 
         List<ForecastDay> timeline = buildTimeline(
@@ -168,6 +215,40 @@ public class BalanceForecastService {
                 summary,
                 fallbackUsed
         );
+    }
+
+    /**
+     * Places a planned cost on its own dates. Each occurrence is counted from the
+     * first date rather than from the one before it, so a plan starting on the
+     * 31st does not drift to the 28th after February and stay there.
+     */
+    private void schedulePlanned(Map<LocalDate, List<ScheduledEvent>> calendar,
+                                 PlannedCashflow planned,
+                                 LocalDate today,
+                                 LocalDate horizonEnd) {
+        BigDecimal amount = money(planned.getAmount());
+        if (amount.signum() <= 0 || planned.getFirstDate() == null) {
+            return;
+        }
+        for (int i = 0; i < planned.getOccurrences(); i++) {
+            LocalDate date = planned.getFirstDate().plusMonths(i);
+            if (date.isAfter(horizonEnd)) {
+                break;
+            }
+            if (!date.isBefore(today)) {
+                calendar.computeIfAbsent(date, unused -> new ArrayList<>())
+                        .add(new ScheduledEvent(planned.getLabel(), amount, false));
+            }
+        }
+    }
+
+    private String plannedAssumption(PlannedCashflow planned) {
+        if (planned.getOccurrences() == 1) {
+            return String.format(Locale.US, "Planned: %s of %.2f once, on %s.",
+                    planned.getLabel(), money(planned.getAmount()), planned.getFirstDate());
+        }
+        return String.format(Locale.US, "Planned: %s of %.2f monthly from %s for %d month(s).",
+                planned.getLabel(), money(planned.getAmount()), planned.getFirstDate(), planned.getOccurrences());
     }
 
     private List<ForecastDay> buildTimeline(LocalDate today,
@@ -413,6 +494,24 @@ public class BalanceForecastService {
 
     private BigDecimal money(BigDecimal value) {
         return (value != null ? value : BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    /** What was read from Investec, so one read can feed more than one projection. */
+    private static final class AccountData {
+        private final BigDecimal openingBalance;
+        private final String currency;
+        private final List<InvestecTransactionResponse.Transaction> history;
+        private final boolean fallbackUsed;
+
+        private AccountData(BigDecimal openingBalance,
+                            String currency,
+                            List<InvestecTransactionResponse.Transaction> history,
+                            boolean fallbackUsed) {
+            this.openingBalance = openingBalance;
+            this.currency = currency;
+            this.history = history;
+            this.fallbackUsed = fallbackUsed;
+        }
     }
 
     private static final class ScheduledEvent {

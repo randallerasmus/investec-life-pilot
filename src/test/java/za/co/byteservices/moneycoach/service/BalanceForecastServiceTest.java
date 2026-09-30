@@ -4,9 +4,11 @@ import org.junit.jupiter.api.Test;
 import za.co.byteservices.moneycoach.dto.BalanceForecastRequest;
 import za.co.byteservices.moneycoach.dto.BalanceForecastResponse;
 import za.co.byteservices.moneycoach.dto.CashflowRisk;
+import za.co.byteservices.moneycoach.dto.ForecastComparison;
 import za.co.byteservices.moneycoach.dto.ForecastDay;
 import za.co.byteservices.moneycoach.dto.InvestecBalanceResponse;
 import za.co.byteservices.moneycoach.dto.InvestecTransactionResponse;
+import za.co.byteservices.moneycoach.dto.PlannedCashflow;
 import za.co.byteservices.moneycoach.model.MoneyCoachRiskLevel;
 
 import java.lang.reflect.Field;
@@ -19,6 +21,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class BalanceForecastServiceTest {
@@ -272,6 +276,58 @@ class BalanceForecastServiceTest {
 
         assertThat(forecast.getAssumptions())
                 .anyMatch(assumption -> assumption.contains("not a guarantee or financial advice"));
+    }
+
+    @Test
+    void comparesThePlanAgainstTheAccountAsItStandsFromOneRead() throws Exception {
+        givenBalance("20000.00");
+        givenTransactions(concat(
+                monthly("Bond Repayment", "-12400.00", 2, 5),
+                monthly("Salary ACME", "34000.00", 25, 5)
+        ));
+        LocalDate start = LocalDate.of(2026, 10, 1);
+
+        ForecastComparison comparison = service.compare(ACCOUNT, request(120, null, false), TODAY, List.of(
+                new PlannedCashflow("Private school (once-off)", new BigDecimal("15000.00"), start, 1),
+                new PlannedCashflow("Private school", new BigDecimal("6500.00"), start, 2)
+        ));
+
+        // One read of Investec feeds both curves.
+        verify(investecAccountService, times(1)).getBalance(ACCOUNT);
+        verify(investecAccountService, times(1)).getTransactions(eq(ACCOUNT), any(), any());
+        assertThat(comparison.getCurrency()).isEqualTo("ZAR");
+
+        assertThat(dayOf(comparison.getBaseline(), start).getOutflows()).isEqualByComparingTo("0.00");
+        ForecastDay firstDay = dayOf(comparison.getWithPlan(), start);
+        assertThat(firstDay.getOutflows()).isEqualByComparingTo("21500.00");
+        assertThat(firstDay.getEvents()).containsExactlyInAnyOrder("Private school", "Private school (once-off)");
+
+        // Two months of the monthly cost, then it stops.
+        assertThat(dayOf(comparison.getWithPlan(), LocalDate.of(2026, 11, 1)).getEvents()).containsExactly("Private school");
+        assertThat(dayOf(comparison.getWithPlan(), LocalDate.of(2026, 12, 1)).getEvents()).isEmpty();
+
+        // Everything the plan takes out comes off the closing balance: 21500 + 6500.
+        assertThat(comparison.getBaseline().getProjectedClosingBalance()
+                .subtract(comparison.getWithPlan().getProjectedClosingBalance()))
+                .isEqualByComparingTo("28000.00");
+        assertThat(comparison.getWithPlan().getAssumptions())
+                .contains("Planned: Private school of 6500.00 monthly from 2026-10-01 for 2 month(s).");
+        assertThat(comparison.getBaseline().getAssumptions()).noneMatch(a -> a.startsWith("Planned:"));
+    }
+
+    @Test
+    void keepsAPlannedCostOnItsDayOfMonthAfterAShortMonth() throws Exception {
+        givenBalance("20000.00");
+        givenTransactions(List.of());
+
+        ForecastComparison comparison = service.compare(ACCOUNT, request(365, null, false), TODAY, List.of(
+                new PlannedCashflow("Car payment", new BigDecimal("3000.00"), LocalDate.of(2027, 1, 31), 3)
+        ));
+
+        assertThat(dayOf(comparison.getWithPlan(), LocalDate.of(2027, 2, 28)).getEvents()).containsExactly("Car payment");
+        // Counted from the first date, so March is back on the 31st rather than stuck on the 28th.
+        assertThat(dayOf(comparison.getWithPlan(), LocalDate.of(2027, 3, 31)).getEvents()).containsExactly("Car payment");
+        assertThat(dayOf(comparison.getWithPlan(), LocalDate.of(2027, 3, 28)).getEvents()).isEmpty();
     }
 
     private ForecastDay dayOf(BalanceForecastResponse forecast, LocalDate date) {

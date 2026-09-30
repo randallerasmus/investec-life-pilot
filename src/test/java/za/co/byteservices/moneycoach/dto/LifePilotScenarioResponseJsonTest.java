@@ -1,13 +1,14 @@
 package za.co.byteservices.moneycoach.dto;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 import za.co.byteservices.moneycoach.model.LifePilotScenarioType;
 import za.co.byteservices.moneycoach.model.MoneyCoachRiskLevel;
 import za.co.byteservices.moneycoach.model.SurvivalStatus;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -21,7 +22,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class LifePilotScenarioResponseJsonTest {
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    // The mapper Spring Boot serialises responses with, so dates render as the client sees them.
+    private final JsonMapper objectMapper = JsonMapper.builder().build();
 
     @Test
     void serialisesEveryFieldTheClientReads() throws Exception {
@@ -41,6 +43,12 @@ class LifePilotScenarioResponseJsonTest {
                 new BigDecimal("10000.00"),
                 new BigDecimal("0.00"),
                 new BigDecimal("33.3"),
+                LocalDate.of(2026, 10, 1),
+                LocalDate.of(2026, 10, 24),
+                null,
+                false,
+                null,
+                null,
                 "summary",
                 "survival message",
                 List.of("recommendation"),
@@ -49,7 +57,7 @@ class LifePilotScenarioResponseJsonTest {
 
         ObjectNode json = (ObjectNode) objectMapper.valueToTree(response);
 
-        assertThat(json.fieldNames()).toIterable().containsExactlyInAnyOrder(
+        assertThat(json.propertyNames()).containsExactlyInAnyOrder(
                 "accountId",
                 "scenarioType",
                 "scenarioName",
@@ -62,17 +70,25 @@ class LifePilotScenarioResponseJsonTest {
                 "currency",
                 "riskLevel",
                 "survivalStatus",
-                "monthlyBufferAfterScenario",
-                "monthlyShortfall",
+                "bufferAtLowestPoint",
+                "shortfallAtLowestPoint",
                 "safeToSpendDropPercent",
+                "startDate",
+                "lowestBalanceDate",
+                "firstShortfallDate",
+                "alreadyShortWithoutScenario",
+                "baselineForecast",
+                "scenarioForecast",
                 "summary",
                 "survivalMessage",
                 "recommendations",
                 "disclaimer"
         );
 
-        assertThat(json.get("survivalStatus").asText()).isEqualTo("AFFORDABLE");
-        assertThat(json.get("scenarioType").asText()).isEqualTo("HOME_RENOVATION");
+        assertThat(json.get("survivalStatus").asString()).isEqualTo("AFFORDABLE");
+        assertThat(json.get("scenarioType").asString()).isEqualTo("HOME_RENOVATION");
+        // The client parses these as ISO dates, not timestamps or arrays.
+        assertThat(json.get("startDate").asString()).isEqualTo("2026-10-01");
     }
 
     @Test
@@ -92,6 +108,12 @@ class LifePilotScenarioResponseJsonTest {
                 SurvivalStatus.UNAFFORDABLE,
                 new BigDecimal("0.00"),
                 new BigDecimal("900.00"),
+                null,
+                LocalDate.of(2026, 10, 1),
+                LocalDate.of(2026, 10, 24),
+                LocalDate.of(2026, 10, 21),
+                true,
+                null,
                 null,
                 "summary",
                 "survival message",

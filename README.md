@@ -66,7 +66,7 @@ history is generated relative to today, so your numbers will differ.*
 | Forecast future balances | Day-by-day projection up to 365 days, with opening, inflow, outflow and closing balance for every day | `BalanceForecastService` |
 | Spot recurring payments | Detects debit orders, subscriptions and salary by merchant, cadence and amount stability, and scores each one's confidence | `RecurringPaymentDetector` |
 | Highlight cashflow risks | Groups the at-risk days into dated windows marked `TIGHT` (below your threshold) or `CRITICAL` (overdrawn) | `BalanceForecastService` |
-| Can I afford this? | **At the till:** the Programmable Card checks each swipe against money that is free before payday. **Before a big decision:** the life-event simulator | `card/`, `CardAuthorizationService`, `LifePilotScenarioService` |
+| Can I afford this? | **At the till:** the Programmable Card checks each swipe against money that is free before payday. **Before a big decision:** the simulator redraws the forecast with the decision's costs on their dates and names the day it would run short | `card/`, `CardAuthorizationService`, `LifePilotScenarioService` |
 
 Around that core:
 
@@ -117,10 +117,23 @@ The laptop comes back as `EXCEEDS_HEADROOM` with `decision: APPROVE`. The card r
 in monitor mode by default: it records the verdict but does not act on it. Change
 `merchantCategoryCode` to `5541` (fuel) and it comes back as `ESSENTIAL_CATEGORY`.
 
-**4. See it visually.** Run the
+**4. Test a big decision against the forecast:**
+
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  -d '{"accountId":"demo-account","scenarioType":"PRIVATE_SCHOOL","scenarioName":"Private school","monthlyCost":6500,"onceOffCost":15000,"durationMonths":18}' \
+  http://localhost:8080/api/lifepilot/scenarios
+```
+
+On the demo account this comes back `UNAFFORDABLE`, and it says why: the account
+is already projected below zero on 24 October without the decision, and the
+decision deepens the lowest point to about -R91,500.
+
+**5. See it visually.** Run the
 [`lifepilot-frontend`](https://github.com/randallerasmus/lifepilot-frontend) and open
-`http://localhost:8081/forecast` with account ID `demo-account`. It shows the
-balance curve, shaded risk windows, and tables of the detected payments and income.
+`http://localhost:8081`. Both screens open on `demo-account`. The simulator draws
+the balance with and without the decision. `/forecast` shows the balance curve,
+shaded risk windows, and tables of the detected payments and income.
 
 **Run the tests:**
 
@@ -192,8 +205,25 @@ Setup for a real card is in [`card/README.md`](card/README.md).
 ### Life-event simulator
 
 `POST /api/lifepilot/scenarios` answers bigger questions, such as private school, a
-second car, a renovation or unpaid leave. It returns the monthly impact, an
-`AFFORDABLE` / `TIGHT` / `UNAFFORDABLE` status, and educational recommendations.
+second car, a renovation or unpaid leave, using the same forecast.
+
+The account is read once and projected twice: as it stands, and with the
+decision's costs placed on their dates. The monthly cost repeats for its
+duration, and the once-off cost lands on the start date, which defaults to the
+first of next month. The verdict is read from the lowest point of the second
+curve, because a decision fails on the day before payday, not on a monthly
+average:
+
+- **`UNAFFORDABLE`**: the balance goes below zero. The response gives the first
+  day it happens, and says whether the account was already short without the
+  decision.
+- **`TIGHT`**: the balance stays positive, but its lowest point leaves less than
+  one month of the new cost.
+- **`AFFORDABLE`**: the forecast absorbs the decision with room to spare.
+
+Existing bills are not asked for. The forecast finds them in the transaction
+history, and asking again would count them twice. The response includes both
+forecasts, so a client can draw the two curves the verdict came from.
 
 ## API
 
@@ -248,11 +278,10 @@ GET /api/investec/accounts/{accountId}/transactions?fromDate=YYYY-MM-DD&toDate=Y
 
 These gaps are listed here on purpose, so an evaluator does not have to find them.
 
-- **The simulator does not use the forecast yet.** Scenarios subtract a flat
-  monthly cost from safe-to-spend. On the demo account, a R6,500/month private
-  school scenario comes back `AFFORDABLE`, while the forecast shows the same
-  account going overdrawn before payday. The next step is to rebuild scenarios on
-  top of `BalanceForecastService`, so a life event redraws the day-by-day curve.
+- **The demo account is always short before payday.** It was tuned to show the
+  forecast's risk windows, so every scenario on it comes back `UNAFFORDABLE`. The
+  message explains that the account was already short, but a demo account with
+  room to spare would show the other two verdicts.
 - **The card code has not been run inside the Investec card sandbox.** The hook
   names, the time windows and the authorisation fields come from the Investec docs
   and community repos. The backend side is covered by tests.

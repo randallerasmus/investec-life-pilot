@@ -1,205 +1,229 @@
 package za.co.byteservices.moneycoach.service;
 
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import za.co.byteservices.moneycoach.dto.BalanceForecastRequest;
+import za.co.byteservices.moneycoach.dto.BalanceForecastResponse;
+import za.co.byteservices.moneycoach.dto.CashflowRisk;
+import za.co.byteservices.moneycoach.dto.ForecastComparison;
 import za.co.byteservices.moneycoach.dto.LifePilotScenarioRequest;
 import za.co.byteservices.moneycoach.dto.LifePilotScenarioResponse;
-import za.co.byteservices.moneycoach.dto.SafeToSpendResponse;
+import za.co.byteservices.moneycoach.dto.PlannedCashflow;
 import za.co.byteservices.moneycoach.model.LifePilotScenarioType;
 import za.co.byteservices.moneycoach.model.MoneyCoachRiskLevel;
 import za.co.byteservices.moneycoach.model.SurvivalStatus;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class LifePilotScenarioServiceTest {
 
-    private final MoneyCoachService moneyCoachService = mock(MoneyCoachService.class);
-    private final LifePilotScenarioService scenarioService = new LifePilotScenarioService(moneyCoachService);
+    private static final LocalDate TODAY = LocalDate.of(2026, 9, 30);
+    private static final LocalDate LOW_DAY = LocalDate.of(2026, 10, 24);
+
+    private final BalanceForecastService forecastService = mock(BalanceForecastService.class);
+    private final LifePilotScenarioService scenarioService = new LifePilotScenarioService(forecastService);
 
     @Test
-    void returnsCriticalScenarioWhenProjectedSafeToSpendIsNegative() {
-        whenSafeToSpendIs(new BigDecimal("8764.11"), new BigDecimal("16700.00"), new BigDecimal("500.00"), new BigDecimal("-8435.89"));
+    void isUnaffordableWhenTheDecisionTakesTheBalanceBelowZero() {
+        whenForecastsAre(
+                forecast("35196.00", "4000.00", List.of()),
+                forecast("35196.00", "-2500.00", List.of(overdraft(LocalDate.of(2026, 10, 21), "-2500.00")))
+        );
 
-        LifePilotScenarioResponse response = scenarioService.simulate(new LifePilotScenarioRequest(
-                "acc-123",
-                BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                new BigDecimal("500.00"),
-                LifePilotScenarioType.PRIVATE_SCHOOL,
-                "Send child to private school",
-                new BigDecimal("6500.00"),
-                new BigDecimal("15000.00"),
-                18
-        ));
+        LifePilotScenarioResponse response = scenarioService.simulate(
+                scenario("6500.00", "15000.00", 18), TODAY);
 
         assertThat(response.getScenarioName()).isEqualTo("Send child to private school");
-        assertThat(response.getCurrentSafeToSpend()).isEqualByComparingTo("-8435.89");
-        assertThat(response.getProjectedSafeToSpend()).isEqualByComparingTo("-14935.89");
-        assertThat(response.getMonthlyImpact()).isEqualByComparingTo("6500.00");
-        assertThat(response.getOnceOffImpact()).isEqualByComparingTo("15000.00");
-        assertThat(response.getDurationMonths()).isEqualTo(18);
+        assertThat(response.getAvailableBalance()).isEqualByComparingTo("35196.00");
+        assertThat(response.getCurrentSafeToSpend()).isEqualByComparingTo("4000.00");
+        assertThat(response.getProjectedSafeToSpend()).isEqualByComparingTo("-2500.00");
         assertThat(response.getRiskLevel()).isEqualTo(MoneyCoachRiskLevel.CRITICAL);
         assertThat(response.getSurvivalStatus()).isEqualTo(SurvivalStatus.UNAFFORDABLE);
-        assertThat(response.getMonthlyBufferAfterScenario()).isEqualByComparingTo("0.00");
-        assertThat(response.getMonthlyShortfall()).isEqualByComparingTo("14935.89");
-        assertThat(response.getSummary()).contains("reduce your monthly safe-to-spend by ZAR 6500.00");
+        assertThat(response.getBufferAtLowestPoint()).isEqualByComparingTo("0.00");
+        assertThat(response.getShortfallAtLowestPoint()).isEqualByComparingTo("2500.00");
+        assertThat(response.getFirstShortfallDate()).isEqualTo(LocalDate.of(2026, 10, 21));
+        assertThat(response.getLowestBalanceDate()).isEqualTo(LOW_DAY);
+        assertThat(response.isAlreadyShortWithoutScenario()).isFalse();
+        // (4000 - -2500) / 4000
+        assertThat(response.getSafeToSpendDropPercent()).isEqualByComparingTo("162.5");
         assertThat(response.getSurvivalMessage())
                 .contains("does not fit")
-                .contains("ZAR 14935.89 short every month for the next 18 months")
-                .contains("once-off cost of ZAR 15000.00");
-        assertThat(response.getRecommendations()).contains("Delay this scenario until your current safe-to-spend is positive.");
+                .contains("go below zero on 2026-10-21")
+                .contains("Without it, the lowest point is ZAR 4000.00")
+                .contains("once-off cost of ZAR 15000.00 on 2026-10-01");
+        assertThat(response.getRecommendations())
+                .contains("Delay the start: on this forecast the first shortfall would land on 2026-10-21.")
+                .contains("Setting aside ZAR 2500.00 before starting would keep the lowest point above zero.");
+        assertThat(response.getBaselineForecast()).isNotNull();
+        assertThat(response.getScenarioForecast()).isNotNull();
         assertThat(response.getDisclaimer()).isEqualTo("Educational planning guidance only. This is not financial advice.");
     }
 
     @Test
-    void omitsDropPercentWhenThereIsNoPositiveSafeToSpendToMeasureAgainst() {
-        whenSafeToSpendIs(new BigDecimal("8764.11"), new BigDecimal("16700.00"), new BigDecimal("500.00"), new BigDecimal("-8435.89"));
+    void saysSoWhenTheAccountIsAlreadyShortWithoutTheDecision() {
+        whenForecastsAre(
+                forecast("35196.00", "-480.00", List.of(overdraft(LocalDate.of(2026, 10, 21), "-480.00"))),
+                forecast("35196.00", "-6980.00", List.of(overdraft(LocalDate.of(2026, 10, 3), "-6980.00")))
+        );
 
-        LifePilotScenarioResponse response = scenarioService.simulate(scenario(
-                LifePilotScenarioType.PRIVATE_SCHOOL,
-                "Send child to private school",
-                new BigDecimal("6500.00"),
-                new BigDecimal("15000.00"),
-                18
-        ));
+        LifePilotScenarioResponse response = scenarioService.simulate(
+                scenario("6500.00", "0.00", 18), TODAY);
 
+        assertThat(response.getSurvivalStatus()).isEqualTo(SurvivalStatus.UNAFFORDABLE);
+        assertThat(response.isAlreadyShortWithoutScenario()).isTrue();
+        // A percentage of a shortfall would read as precision the number does not have.
         assertThat(response.getSafeToSpendDropPercent()).isNull();
+        assertThat(response.getSurvivalMessage())
+                .contains("already projected to go below zero on 2026-10-21 without this decision")
+                .contains("from ZAR -480.00 to ZAR -6980.00")
+                .doesNotContain("once-off");
+        assertThat(response.getRecommendations().get(0)).startsWith("Close the existing gap first");
+        assertThat(response.getRecommendations().get(1)).contains("ZAR 480.00");
     }
 
     @Test
-    void returnsTightScenarioWhenProjectedSafeToSpendIsBelowTenPercentOfAvailableBalance() {
-        whenSafeToSpendIs(new BigDecimal("10000.00"), new BigDecimal("6000.00"), new BigDecimal("500.00"), new BigDecimal("3500.00"));
+    void isTightWhenTheLowestPointLeavesLessThanAMonthOfTheNewCost() {
+        whenForecastsAre(
+                forecast("20000.00", "9000.00", List.of()),
+                forecast("20000.00", "2500.00", List.of())
+        );
 
-        LifePilotScenarioResponse response = scenarioService.simulate(new LifePilotScenarioRequest(
-                "acc-123",
-                BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                new BigDecimal("500.00"),
-                LifePilotScenarioType.SECOND_CAR,
-                "Buy a second car",
-                new BigDecimal("2800.00"),
-                new BigDecimal("0.00"),
-                60
-        ));
+        LifePilotScenarioResponse response = scenarioService.simulate(
+                scenario("6500.00", "0.00", 12), TODAY);
 
-        assertThat(response.getProjectedSafeToSpend()).isEqualByComparingTo("700.00");
         assertThat(response.getRiskLevel()).isEqualTo(MoneyCoachRiskLevel.TIGHT);
         assertThat(response.getSurvivalStatus()).isEqualTo(SurvivalStatus.TIGHT);
-        assertThat(response.getMonthlyBufferAfterScenario()).isEqualByComparingTo("700.00");
-        assertThat(response.getMonthlyShortfall()).isEqualByComparingTo("0.00");
-        assertThat(response.getSafeToSpendDropPercent()).isEqualByComparingTo("80.0");
+        assertThat(response.getBufferAtLowestPoint()).isEqualByComparingTo("2500.00");
+        assertThat(response.getShortfallAtLowestPoint()).isEqualByComparingTo("0.00");
+        assertThat(response.getFirstShortfallDate()).isNull();
         assertThat(response.getSurvivalMessage())
                 .contains("fits, but only just")
-                .contains("ZAR 700.00 of monthly room for the next 60 months")
-                .doesNotContain("once-off cost");
-        assertThat(response.getRecommendations()).contains("Keep a larger monthly buffer before committing to this scenario.");
+                .contains("bottom out at ZAR 2500.00 on 2026-10-24");
     }
 
     @Test
-    void returnsHealthyScenarioWhenProjectedSafeToSpendHasEnoughBuffer() {
-        whenSafeToSpendIs(new BigDecimal("30000.00"), new BigDecimal("12000.00"), new BigDecimal("3000.00"), new BigDecimal("15000.00"));
+    void isAffordableWhenTheForecastAbsorbsTheDecision() {
+        whenForecastsAre(
+                forecast("50000.00", "40000.00", List.of()),
+                forecast("50000.00", "30000.00", List.of())
+        );
 
-        LifePilotScenarioResponse response = scenarioService.simulate(new LifePilotScenarioRequest(
-                "acc-123",
-                BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                new BigDecimal("3000.00"),
-                LifePilotScenarioType.OVERSEAS_HOLIDAY,
-                "Family overseas holiday",
-                new BigDecimal("5000.00"),
-                new BigDecimal("10000.00"),
-                12
-        ));
+        LifePilotScenarioResponse response = scenarioService.simulate(
+                scenario("6500.00", "0.00", 12), TODAY);
 
-        assertThat(response.getProjectedSafeToSpend()).isEqualByComparingTo("10000.00");
         assertThat(response.getRiskLevel()).isEqualTo(MoneyCoachRiskLevel.HEALTHY);
         assertThat(response.getSurvivalStatus()).isEqualTo(SurvivalStatus.AFFORDABLE);
-        assertThat(response.getMonthlyBufferAfterScenario()).isEqualByComparingTo("10000.00");
-        assertThat(response.getMonthlyShortfall()).isEqualByComparingTo("0.00");
-        assertThat(response.getSafeToSpendDropPercent()).isEqualByComparingTo("33.3");
-        assertThat(response.getSurvivalMessage())
-                .contains("fits your monthly position")
-                .contains("ZAR 10000.00 of room each month for the next 12 months")
-                .contains("once-off cost of ZAR 10000.00");
-        assertThat(response.getRecommendations()).contains("This scenario appears affordable on the supplied monthly numbers, but keep bills and emergency savings protected.");
+        assertThat(response.getBufferAtLowestPoint()).isEqualByComparingTo("30000.00");
+        assertThat(response.getSafeToSpendDropPercent()).isEqualByComparingTo("25.0");
+        assertThat(response.getSummary())
+                .isEqualTo("Over the next 365 days this decision moves the lowest projected balance from ZAR 40000.00 to ZAR 30000.00.");
+        assertThat(response.getSurvivalMessage()).contains("stays ZAR 30000.00 above zero");
     }
 
-    /**
-     * The safe-to-spend call is stubbed, so the bill and savings inputs on the
-     * request do not affect the result; only the scenario costs do.
-     */
-    private LifePilotScenarioRequest scenario(LifePilotScenarioType scenarioType,
-                                              String scenarioName,
-                                              BigDecimal monthlyCost,
-                                              BigDecimal onceOffCost,
-                                              Integer durationMonths) {
+    @Test
+    void placesTheDecisionOnTheForecastFromTheFirstOfNextMonth() {
+        whenForecastsAre(forecast("20000.00", "9000.00", List.of()), forecast("20000.00", "2500.00", List.of()));
+
+        scenarioService.simulate(scenario("6500.00", "15000.00", 2), TODAY);
+
+        Captured captured = captured();
+        // 1 Oct + 2 months + 31 days = 1 Jan 2027, 93 days after 30 Sep.
+        assertThat(captured.request.getHorizonDays()).isEqualTo(93);
+        assertThat(captured.plan).hasSize(2);
+        assertThat(captured.plan).allMatch(p -> p.getFirstDate().equals(LocalDate.of(2026, 10, 1)));
+        assertThat(captured.plan).anyMatch(p -> p.getOccurrences() == 1
+                && p.getAmount().compareTo(new BigDecimal("15000.00")) == 0);
+        assertThat(captured.plan).anyMatch(p -> p.getOccurrences() == 2
+                && p.getAmount().compareTo(new BigDecimal("6500.00")) == 0);
+    }
+
+    @Test
+    void runsAnOpenEndedDecisionForTheWholeYearAndHonoursAGivenStartDate() {
+        whenForecastsAre(forecast("20000.00", "9000.00", List.of()), forecast("20000.00", "2500.00", List.of()));
+        LocalDate start = LocalDate.of(2026, 11, 15);
+
+        scenarioService.simulate(new LifePilotScenarioRequest(
+                "acc-123", LifePilotScenarioType.UNPAID_LEAVE, "Take unpaid leave",
+                new BigDecimal("39000.00"), null, null, start), TODAY);
+
+        Captured captured = captured();
+        assertThat(captured.request.getHorizonDays()).isEqualTo(365);
+        assertThat(captured.plan).singleElement().satisfies(p -> {
+            assertThat(p.getFirstDate()).isEqualTo(start);
+            assertThat(p.getOccurrences()).isGreaterThanOrEqualTo(12);
+        });
+    }
+
+    private LifePilotScenarioRequest scenario(String monthlyCost, String onceOffCost, Integer durationMonths) {
         return new LifePilotScenarioRequest(
                 "acc-123",
-                BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                scenarioType,
-                scenarioName,
-                monthlyCost,
-                onceOffCost,
-                durationMonths
+                LifePilotScenarioType.PRIVATE_SCHOOL,
+                "Send child to private school",
+                new BigDecimal(monthlyCost),
+                new BigDecimal(onceOffCost),
+                durationMonths,
+                null
         );
     }
 
-    private void whenSafeToSpendIs(BigDecimal availableBalance,
-                                   BigDecimal estimatedBills,
-                                   BigDecimal goalSavingAmount,
-                                   BigDecimal safeToSpend) {
-        when(moneyCoachService.calculateSafeToSpend(
-                eq("acc-123"),
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-                any()
-        )).thenReturn(new SafeToSpendResponse(
+    private void whenForecastsAre(BalanceForecastResponse baseline, BalanceForecastResponse withScenario) {
+        when(forecastService.compare(eq("acc-123"), any(BalanceForecastRequest.class), eq(TODAY), any()))
+                .thenReturn(new ForecastComparison(baseline, withScenario, "ZAR"));
+    }
+
+    @SuppressWarnings("unchecked")
+    private Captured captured() {
+        ArgumentCaptor<BalanceForecastRequest> request = ArgumentCaptor.forClass(BalanceForecastRequest.class);
+        ArgumentCaptor<List<PlannedCashflow>> plan = ArgumentCaptor.forClass(List.class);
+        verify(forecastService).compare(eq("acc-123"), request.capture(), eq(TODAY), plan.capture());
+        return new Captured(request.getValue(), plan.getValue());
+    }
+
+    private record Captured(BalanceForecastRequest request, List<PlannedCashflow> plan) {
+    }
+
+    private CashflowRisk overdraft(LocalDate start, String lowest) {
+        return new CashflowRisk(
+                start,
+                LOW_DAY,
+                (int) (LOW_DAY.toEpochDay() - start.toEpochDay() + 1),
+                new BigDecimal(lowest),
+                LOW_DAY,
+                MoneyCoachRiskLevel.CRITICAL,
+                "message"
+        );
+    }
+
+    /** Only the fields the simulator reads carry meaning; the rest are placeholders. */
+    private BalanceForecastResponse forecast(String openingBalance, String lowestBalance, List<CashflowRisk> risks) {
+        return new BalanceForecastResponse(
                 "acc-123",
-                availableBalance,
-                BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                estimatedBills,
-                goalSavingAmount,
-                safeToSpend,
-                "ZAR",
-                "safe-to-spend message"
-        ));
+                TODAY,
+                120,
+                new BigDecimal(openingBalance),
+                new BigDecimal("20000.00"),
+                new BigDecimal(lowestBalance),
+                LOW_DAY,
+                risks.isEmpty() ? MoneyCoachRiskLevel.HEALTHY : MoneyCoachRiskLevel.CRITICAL,
+                new BigDecimal("39000.00"),
+                new BigDecimal("23976.00"),
+                new BigDecimal("300.00"),
+                List.of(),
+                List.of(),
+                risks,
+                List.of(),
+                List.of(),
+                "summary",
+                false
+        );
     }
 }

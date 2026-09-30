@@ -43,9 +43,17 @@ public class CardGuardrailProperties {
     /**
      * How long a spending snapshot stays usable. The card window is too short to
      * build one, so authorisation always answers from cache; this bounds how
-     * stale that answer can be.
+     * stale that answer can be. Several refresh intervals long, so one failed
+     * rebuild does not leave the next swipe without an answer.
      */
-    private int snapshotTtlSeconds = 300;
+    private int snapshotTtlSeconds = 900;
+
+    /**
+     * How often every account the card has used is rebuilt in the background.
+     * Read by the scheduler through its property placeholder; kept here so the
+     * setting is documented with the others.
+     */
+    private int snapshotRefreshSeconds = 240;
 
     /**
      * Horizon used to total upcoming commitments when no recurring income was
@@ -105,6 +113,14 @@ public class CardGuardrailProperties {
 
     public void setSnapshotTtlSeconds(int snapshotTtlSeconds) {
         this.snapshotTtlSeconds = snapshotTtlSeconds;
+    }
+
+    public int getSnapshotRefreshSeconds() {
+        return snapshotRefreshSeconds;
+    }
+
+    public void setSnapshotRefreshSeconds(int snapshotRefreshSeconds) {
+        this.snapshotRefreshSeconds = snapshotRefreshSeconds;
     }
 
     public int getFallbackHorizonDays() {

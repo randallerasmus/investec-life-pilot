@@ -1,0 +1,53 @@
+# Knowledge: tips, gotchas and lessons learned
+
+Things that cost time building LifePilot for the Future You bounty.
+
+## Investec API
+
+- **Debit or credit is not the sign of `amount`.** Amounts arrive positive; the
+  direction is in `type` (`DEBIT` / `CREDIT`). Early code read every amount as
+  income. All direction rules now live in `TransactionAmounts`, so no call site
+  re-derives them.
+- **One OAuth token per call adds up.** A forecast makes a balance call and a
+  transactions call; the simulator reads once and projects twice
+  (`BalanceForecastService.compare`) rather than calling Investec per curve.
+
+## Programmable card
+
+- **`beforeTransaction` has two seconds, including the network round trip.** A
+  forecast took 4.7s locally, so the card never computes: it asks a service that
+  answers from a cached snapshot in milliseconds.
+- **Refreshing only after a swipe is not enough.** Swipes are hours apart and the
+  snapshot expires in minutes, so the guardrail stood aside on almost every
+  purchase. Snapshots of accounts the card has used are now rebuilt on a schedule.
+- **A failed rebuild reads a zero balance.** Zero headroom declines everything, so
+  a fallback build never replaces a good snapshot.
+- **Fail open.** Every uncertain path approves. Stranding someone at a till is
+  worse than the overdraft the guardrail was trying to prevent.
+- Avoid optional chaining and `AbortController` in card code: the runtime could
+  not be tested against, so it sticks to the most conservative JavaScript.
+
+## Forecasting
+
+- **Judge a decision at the lowest point, not the monthly average.** A decision
+  fails on the day before payday, after the debit orders and before the salary.
+  "Safe to spend" is the lowest projected balance: what could leave the account
+  today without it ever going below zero.
+- **Do not ask users for bills the history already shows.** Asking again counts
+  them twice. The first simulator did exactly that, and said a private school was
+  affordable on an account the forecast showed overdrawn.
+- **Remove recurring amounts before averaging daily spend,** or they are charged
+  twice: on their due date and inside the average.
+- **Count monthly dates from the first date, not the previous one,** or a payment
+  on the 31st drifts to the 28th after February and stays there.
+- **A demo account needs a fixed-length window anchored to month boundaries.** A
+  sliding window changed the number of paydays between adjacent dates; a fixed
+  start let the surplus compound until the account stopped dipping.
+
+## Frontend
+
+- **Pin the JSON contract.** When backend and frontend field names drifted, the UI
+  silently rendered blanks. `LifePilotScenarioResponseJsonTest` now pins the key
+  set with the same Jackson 3 mapper Spring Boot serialises with.
+- **Render the chart before trusting it.** The first look at a one-year horizon
+  found colliding date ticks on phones and a clipped low-point label.

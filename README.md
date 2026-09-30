@@ -67,6 +67,14 @@ history is generated relative to today, so your numbers will differ.*
   <img src="docs/assets/forecast.png" alt="The one-year forecast for demo-account: the balance climbs each payday and dips to zero before the next, first running out on 24 October 2026" width="100%" />
 </p>
 
+## Who It Is For
+
+Someone paid monthly whose balance looks healthy after payday and is mostly
+spoken for by debit orders: bond, car, school fees, medical aid. The balance
+says R35,000; the forecast says R0 on the 24th. LifePilot is for the moment
+before they spend what is already committed, whether that is a R1,200 swipe at
+the till or a decision like private school.
+
 ## What It Does
 
 | Bounty ask | LifePilot | Where |
@@ -160,6 +168,39 @@ shaded risk windows, and tables of the detected payments and income.
 .\mvnw.cmd test
 ```
 
+## Architecture
+
+```text
+Investec API (OAuth2 client credentials)
+  accounts, balance, 180 days of transactions
+        |
+InvestecAccountService --- demo-account / demo-comfortable (generated, same DTOs)
+        |
+RecurringPaymentDetector    finds debit orders, subscriptions and salary
+        |
+BalanceForecastService      walks the balance forward day by day
+   |            |                    |
+   |   LifePilotScenarioService   SpendingSnapshotService (cached headroom)
+   |   with / without a decision        |
+   |                              CardAuthorizationService <-- card/main.js
+REST API (Spring Boot, :8080)                                  beforeTransaction
+        |
+lifepilot-frontend (React, :8081)   simulator and forecast screens
+```
+
+### Investec data it reads
+
+| Endpoint | Used for |
+| --- | --- |
+| `POST /identity/v2/oauth2/token` | Client-credentials access token |
+| `GET /za/pb/v1/accounts` | Listing accounts |
+| `GET /za/pb/v1/accounts/{id}/balance` | Today's available balance, the forecast's starting point |
+| `GET /za/pb/v1/accounts/{id}/transactions` | 180 days of history, for recurring detection and average daily spend |
+| Programmable Card `beforeTransaction` / `afterTransaction` / `afterDecline` | Checking a swipe against the forecast, and rebuilding the snapshot afterwards |
+
+LifePilot only reads. It never moves money, and the card code can only approve
+or decline a transaction the cardholder started.
+
 ## How It Works
 
 ### Recurring payment detection
@@ -244,6 +285,55 @@ Existing bills are not asked for. The forecast finds them in the transaction
 history, and asking again would count them twice. The response includes both
 forecasts, so a client can draw the two curves the verdict came from.
 
+### Assumptions
+
+Every forecast response lists its own assumptions. The main ones:
+
+- **The past six months repeat.** A recurring payment is expected on its usual
+  day at its median amount. A payment unseen for two of its cycles is treated as
+  cancelled.
+- **Day-to-day spending is an average.** Everything that is not a detected
+  recurring payment is spread evenly as a daily figure. Real spending is lumpier.
+- **Income is what was detected.** If salary is not found in the history, the
+  projection shows outflows only, unless `expectedMonthlyIncome` is supplied.
+- **A decision's costs land on fixed dates.** The monthly cost repeats from the
+  start date (first of next month by default); a once-off cost lands on the start
+  date.
+- **Nothing unexpected happens.** Bonuses, refunds, emergencies and one-off
+  purchases are not predicted.
+
+Forecasts are estimates based on past behaviour, not guarantees, and nothing here
+is financial advice.
+
+### AI (optional)
+
+AI is off unless `OPENAI_API_KEY` is set, and no forecast, detection or verdict
+depends on it. Every number comes from the deterministic services above.
+
+- **What it does:** rewrites the Money Coach advice and answers plain-language
+  questions (`/api/lifepilot/ai-coach/...`) in friendlier words.
+- **What data it sees:** the figures already calculated for the account, such as
+  available balance, safe-to-spend and risk level, plus snippets from the built-in
+  financial-education documents. Not raw transactions.
+- **Limits:** it can phrase things badly or overconfidently. A guardrail scans
+  every answer for advice-like wording (such as "you should invest") and replaces
+  it with a safe educational answer, and every response carries a disclaimer.
+- **Where a human stays in control:** AI never acts. It cannot move money or
+  change the card's decision; the card guardrail is deterministic and ships in
+  monitor mode, so it declines nothing until the cardholder turns that on.
+
+## What It Does Not Do
+
+- It does not move money, pay bills or change debit orders.
+- It does not give financial advice. Everything is educational planning guidance.
+- It does not categorise spending yet (groceries, fuel and so on).
+- It does not predict one-off events: bonuses, refunds, emergencies.
+- It does not store data. Nothing is persisted; the card snapshot cache is in
+  memory. To disconnect, remove the Investec credentials and card key, and the
+  service can no longer read anything.
+- It is not production-ready: it is a single-user prototype, and the card
+  guardrail authenticates with one shared secret.
+
 ## API
 
 ### Future You: forecast and card
@@ -304,6 +394,11 @@ These gaps are listed here on purpose, so an evaluator does not have to find the
   swipe after it approves while a new snapshot is built.
 - **Single user.** One account per card, and a shared secret as the only
   authentication. That is enough for a personal prototype, but not for production.
+
+## Licence
+
+MIT. See [LICENSE](LICENSE). Tips and gotchas from building it are in
+[knowledge](knowledge).
 
 ## Safety
 
